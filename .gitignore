@@ -1,4 +1,6 @@
 .env
+.venv/
+.venv-ci/
 __pycache__/
 *.pyc
 .chroma/
