@@ -6,6 +6,8 @@
 """
 import os
 import uuid
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -14,6 +16,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Metrics
+total_chats: int = 0
+total_chat_latency_ms: float = 0.0
+tool_call_counts: dict[str, int] = defaultdict(int)
 
 # .env loader (stdlib; keys never live in the repo)
 _env = ROOT / ".env"
@@ -27,7 +34,7 @@ if _env.exists():
 from app.agent import Agent  # noqa: E402  (env must load first)
 from app import llm  # noqa: E402
 
-agent = Agent()
+agent = Agent(tool_call_counts=tool_call_counts)
 sessions = {}  # session_id -> message history  # ponytail: in-memory, per-instance; move to a store if ever >1 replica
 
 
@@ -48,12 +55,21 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
+    global total_chats, total_chat_latency_ms
+    start_time = time.perf_counter()
+
     sid = req.session_id or uuid.uuid4().hex[:12]
     history = sessions.setdefault(sid, [])
     result = await agent.run(req.message, history=history)
     history.append({"role": "user", "content": req.message})
     history.append({"role": "assistant", "content": result["answer"]})
     del history[:-16]  # keep the last 8 exchanges
+
+    end_time = time.perf_counter()
+    latency_ms = (end_time - start_time) * 1000
+    total_chats += 1
+    total_chat_latency_ms += latency_ms
+
     return {"session_id": sid, **result}
 
 
@@ -70,3 +86,13 @@ async def health():
 @app.get("/")
 async def index():
     return FileResponse(ROOT / "static" / "index.html")
+
+
+@app.get("/metrics")
+async def metrics():
+    avg_chat_latency_ms = (total_chat_latency_ms / total_chats) if total_chats > 0 else 0.0
+    return {
+        "total_chats": total_chats,
+        "tool_calls": dict(tool_call_counts),
+        "avg_chat_latency_ms": avg_chat_latency_ms,
+    }
