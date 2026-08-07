@@ -69,7 +69,7 @@ Rules:
 class Agent:
     """Holds one MCP session and the discovered tool schemas."""
 
-    def __init__(self):
+    def __init__(self, tool_call_counts=None):
         self.session = None
         self.tools = []          # OpenAI-format tool schemas
         self.tool_names = []
@@ -77,6 +77,7 @@ class Agent:
         self._ready = None
         self._shutdown = None
         self._error = None
+        self._tool_call_counts = tool_call_counts # Reference to shared metrics dict
 
     async def start(self):
         """Spawn an owner task that holds the MCP session open. All async
@@ -122,6 +123,8 @@ class Agent:
 
     async def _call_tool(self, name, args):
         """Call one MCP tool; failures come back as text the LLM can act on."""
+        if self._tool_call_counts is not None:
+            self._tool_call_counts[name] += 1
         try:
             result = await self.session.call_tool(name, args)
             return "\n".join(c.text for c in result.content if c.type == "text")
