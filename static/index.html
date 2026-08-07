@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurora HR Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design adapted from "Discourse — AI Chatbot UI Kit" (Figma community file
+     1569991105423787535): dark rail + light chat canvas, indigo accent,
+     rounded bubbles, pill chips. */
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1a1d26; --muted: #6b7280;
+    --accent: #4f46e5; --accent-soft: #eef2ff; --border: #e5e7eb;
+    --rail: #111322; --rail-ink: #c7cad6; --ok: #10b981; --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: Inter, system-ui, sans-serif; background: var(--bg);
+         color: var(--ink); height: 100vh; display: flex; overflow: hidden; }
+
+  /* ── sidebar ── */
+  aside { width: 280px; background: var(--rail); color: var(--rail-ink);
+          display: flex; flex-direction: column; padding: 20px 16px; gap: 18px; flex-shrink: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; color: #fff; }
+  .brand .logo { width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); display: grid;
+    place-items: center; font-weight: 700; font-size: 15px; color: #fff; }
+  .brand b { font-size: 15px; } .brand small { display:block; font-weight: 400;
+    font-size: 11px; color: var(--rail-ink); }
+  .side-h { font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+            color: #8087a0; margin-top: 6px; }
+  .task { background: #1b1e33; border: 1px solid #262a45; color: #dfe2ee;
+    border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.45;
+    cursor: pointer; text-align: left; width: 100%; font-family: inherit; }
+  .task:hover { border-color: var(--accent); background: #202440; }
+  .task b { display: block; color: #fff; margin-bottom: 2px; font-size: 12.5px; }
+  .health { margin-top: auto; background: #1b1e33; border-radius: 10px;
+            padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+         background: var(--warn); margin-right: 6px; }
+  .dot.ok { background: var(--ok); }
+
+  /* ── chat ── */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  header { padding: 14px 28px; background: var(--card); border-bottom: 1px solid var(--border);
+           display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 15px; font-weight: 600; }
+  header .sub { font-size: 12px; color: var(--muted); }
+  #log { flex: 1; overflow-y: auto; padding: 26px 8%; display: flex;
+         flex-direction: column; gap: 18px; }
+  .msg { max-width: 78%; line-height: 1.55; font-size: 14px; white-space: pre-wrap; }
+  .user { align-self: flex-end; background: var(--accent); color: #fff;
+          padding: 11px 15px; border-radius: 14px 14px 4px 14px; }
+  .bot  { align-self: flex-start; background: var(--card); border: 1px solid var(--border);
+          padding: 13px 16px; border-radius: 14px 14px 14px 4px;
+          box-shadow: 0 1px 2px rgb(0 0 0 / .04); }
+  .cites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .cite { background: var(--accent-soft); color: var(--accent); font-size: 11.5px;
+          padding: 3px 9px; border-radius: 999px; font-weight: 500; cursor: default; }
+  details.trace { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  details.trace summary { cursor: pointer; font-weight: 500; user-select: none; }
+  .step { background: #f8f9fb; border: 1px solid var(--border); border-radius: 8px;
+          padding: 8px 10px; margin-top: 6px; overflow-x: auto; }
+  .step .tname { color: var(--accent); font-weight: 600; font-family: ui-monospace, monospace; font-size: 11.5px; }
+  .step pre { font-size: 11px; font-family: ui-monospace, monospace;
+              white-space: pre-wrap; word-break: break-word; margin-top: 4px; color: #4b5563; }
+  .typing { align-self: flex-start; color: var(--muted); font-size: 13px;
+            padding: 8px 4px; display: none; }
+
+  /* ── composer ── */
+  form { display: flex; gap: 10px; padding: 16px 8% 22px; background:
+         linear-gradient(transparent, var(--bg) 40%); }
+  input[type=text] { flex: 1; padding: 13px 16px; border: 1px solid var(--border);
+    border-radius: 12px; font: inherit; font-size: 14px; background: var(--card); outline: none; }
+  input[type=text]:focus { border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgb(79 70 229 / .12); }
+  button[type=submit] { background: var(--accent); color: #fff; border: 0;
+    border-radius: 12px; padding: 0 22px; font: inherit; font-weight: 600;
+    font-size: 14px; cursor: pointer; }
+  button[type=submit]:disabled { opacity: .5; cursor: wait; }
+  @media (max-width: 760px) { aside { display: none; } .msg { max-width: 92%; } }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="logo">A</div>
+    <div><b>Aurora HR Copilot</b><small>People Operations assistant</small></div>
+  </div>
+  <div class="side-h">Demo tasks</div>
+  <button class="task" data-q="I'm EMP003. Can I take 3 days of PTO the week of September 21? If it's possible, help me get it requested.">
+    <b>PTO request guidance</b>Balance check → policy → manager approval → ticket
+  </button>
+  <button class="task" data-q="I'm EMP002 and I want to work from Portugal for 6 weeks this fall. Am I allowed, and what do I need to do?">
+    <b>Remote work abroad</b>Profile → remote/security policies → next steps
+  </button>
+  <div class="side-h">More examples</div>
+  <button class="task" data-q="Can I expense a home office chair?">Home-office chair reimbursement</button>
+  <button class="task" data-q="I'm EMP004 — am I eligible for company medical coverage?">Part-time benefits eligibility</button>
+  <button class="task" data-q="What are the company holidays in November 2026?">Holiday calendar</button>
+  <div class="health" id="health"><span class="dot"></span>Checking system…</div>
+</aside>
+
+<main>
+  <header>
+    <h1>Chat</h1>
+    <div class="sub">Answers are grounded in Aurora Dynamics policy documents and cited inline.</div>
+  </header>
+  <div id="log">
+    <div class="msg bot">Hi! I'm the Aurora HR Copilot. Ask me about PTO, remote work, expenses, benefits, equipment, leave, or workplace policies — or pick a demo task on the left. I look up policy documents and your (mock) HR records before answering, and I cite my sources.</div>
+  </div>
+  <div class="typing" id="typing">Working — calling tools…</div>
+  <form id="f">
+    <input type="text" id="q" placeholder="Ask an HR question…" autocomplete="off" required>
+    <button type="submit" id="send">Send</button>
+  </form>
+</main>
+
+<script>
+const log = document.getElementById('log'), typing = document.getElementById('typing');
+const form = document.getElementById('f'), q = document.getElementById('q'), send = document.getElementById('send');
+let sessionId = null;
+
+fetch('/health').then(r => r.json()).then(h => {
+  document.getElementById('health').innerHTML =
+    `<span class="dot ${h.mcp_connected ? 'ok' : ''}"></span>` +
+    `MCP ${h.mcp_connected ? 'connected' : 'offline'} · ${h.mcp_tools.length} tools<br>` +
+    `<span style="color:#8087a0">model: ${h.model}</span>`;
+}).catch(() => {});
+
+function add(cls, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls; d.textContent = text;
+  log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+}
+
+function renderExtras(el, data) {
+  if (data.citations?.length) {
+    const c = document.createElement('div'); c.className = 'cites';
+    data.citations.forEach(x => {
+      const s = document.createElement('span'); s.className = 'cite';
+      s.textContent = `${x.doc_id} § ${x.section}`; s.title = x.snippet || '';
+      c.appendChild(s);
+    });
+    el.appendChild(c);
+  }
+  if (data.trace?.length) {
+    const det = document.createElement('details'); det.className = 'trace';
+    det.innerHTML = `<summary>Agent trace — ${data.trace.length} tool call${data.trace.length > 1 ? 's' : ''}</summary>`;
+    data.trace.forEach(t => {
+      const st = document.createElement('div'); st.className = 'step';
+      st.innerHTML = `<span class="tname">${t.tool}</span>` +
+        `<pre>args: ${JSON.stringify(t.arguments)}\n→ ${t.result_preview}</pre>`;
+      det.appendChild(st);
+    });
+    el.appendChild(det);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+async function ask(text) {
+  add('user', text);
+  q.value = ''; send.disabled = true; typing.style.display = 'block';
+  try {
+    const r = await fetch('/chat', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: text, session_id: sessionId}),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    sessionId = data.session_id;
+    renderExtras(add('bot', data.answer), data);
+  } catch (e) {
+    add('bot', 'Something went wrong (' + e.message + '). The service may be cold-starting — try again in ~30 seconds.');
+  } finally {
+    send.disabled = false; typing.style.display = 'none'; q.focus();
+  }
+}
+
+form.addEventListener('submit', e => { e.preventDefault(); if (q.value.trim()) ask(q.value.trim()); });
+document.querySelectorAll('.task').forEach(b =>
+  b.addEventListener('click', () => ask(b.dataset.q)));
+</script>
+</body>
+</html>

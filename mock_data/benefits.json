@@ -1,0 +1,58 @@
+{
+  "EMP001": {
+    "eligible": true,
+    "medical_plan": "HDHP + HSA",
+    "dental": true,
+    "vision": true,
+    "k401_contribution_pct": 6,
+    "hsa_company_contribution": 1000,
+    "life_insurance": "1x salary (company-paid)",
+    "enrollment_status": "enrolled",
+    "next_change_window": "Open enrollment Nov 1-15, 2026"
+  },
+  "EMP002": {
+    "eligible": true,
+    "medical_plan": "Base PPO",
+    "dental": true,
+    "vision": false,
+    "k401_contribution_pct": 4,
+    "life_insurance": "1x salary (company-paid)",
+    "enrollment_status": "enrolled",
+    "next_change_window": "Open enrollment Nov 1-15, 2026"
+  },
+  "EMP003": {
+    "eligible": true,
+    "medical_plan": null,
+    "dental": false,
+    "vision": false,
+    "k401_contribution_pct": 4,
+    "life_insurance": "1x salary (company-paid)",
+    "enrollment_status": "not_enrolled",
+    "new_hire_enrollment_deadline": "2025-12-10",
+    "note": "New-hire 30-day window missed; next chance is a qualifying life event or open enrollment."
+  },
+  "EMP004": {
+    "eligible": "partial",
+    "medical_plan": null,
+    "medical_note": "Part-time (20-29 hrs/week): not eligible for company medical coverage.",
+    "dental": true,
+    "vision": true,
+    "k401_contribution_pct": 5,
+    "enrollment_status": "enrolled",
+    "next_change_window": "Open enrollment Nov 1-15, 2026"
+  },
+  "EMP005": {
+    "eligible": false,
+    "note": "Contractor — not eligible for any company benefit plan."
+  },
+  "EMP006": {
+    "eligible": true,
+    "medical_plan": "Premium PPO",
+    "dental": true,
+    "vision": true,
+    "k401_contribution_pct": 10,
+    "life_insurance": "1x salary + 2x supplemental",
+    "enrollment_status": "enrolled",
+    "next_change_window": "Open enrollment Nov 1-15, 2026"
+  }
+}

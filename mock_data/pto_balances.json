@@ -1,0 +1,47 @@
+{
+  "EMP001": {
+    "vacation_days_available": 14.5,
+    "sick_days_available": 8,
+    "floating_holidays_available": 1,
+    "vacation_accrual_rate_per_month": 2.083,
+    "days_borrowed": 0,
+    "pending_requests": []
+  },
+  "EMP002": {
+    "vacation_days_available": 9,
+    "sick_days_available": 10,
+    "floating_holidays_available": 2,
+    "vacation_accrual_rate_per_month": 1.667,
+    "days_borrowed": 0,
+    "pending_requests": [
+      {"request_id": "PTO-2231", "dates": "2026-09-14 to 2026-09-16", "days": 3, "status": "pending_manager_approval"}
+    ]
+  },
+  "EMP003": {
+    "vacation_days_available": 2.5,
+    "sick_days_available": 9,
+    "floating_holidays_available": 2,
+    "vacation_accrual_rate_per_month": 1.667,
+    "days_borrowed": 0,
+    "pending_requests": []
+  },
+  "EMP004": {
+    "vacation_days_available": 6,
+    "sick_days_available": 5,
+    "floating_holidays_available": 2,
+    "vacation_accrual_rate_per_month": 1.042,
+    "days_borrowed": 0,
+    "pending_requests": []
+  },
+  "EMP005": {
+    "note": "Contractor — not covered by the PTO Policy; time off per service agreement."
+  },
+  "EMP006": {
+    "vacation_days_available": 21,
+    "sick_days_available": 10,
+    "floating_holidays_available": 1,
+    "vacation_accrual_rate_per_month": 2.083,
+    "days_borrowed": 0,
+    "pending_requests": []
+  }
+}
