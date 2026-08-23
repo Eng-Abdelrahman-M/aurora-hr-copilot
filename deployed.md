@@ -26,7 +26,18 @@ curl -X POST <deployed-url>/chat -H "Authorization: Bearer <token>"      -H 'Con
 ```
 
 `/health` is deliberately ungated, so connectivity and MCP status can be
-checked without the token.
+checked without the token. It also reports `"gated": true/false`, which is the
+quickest way to confirm the deployment actually has `APP_TOKEN` set:
+
+```bash
+curl -s <deployed-url>/health
+# {"status":"ok", ..., "gated":true, "mcp_connected":true, ...}
+```
+
+If `gated` is `false`, `APP_TOKEN` is missing from the environment and the app
+is open to anyone. `render.yaml` declares it with `sync: false`, which means
+Render does **not** supply a value — it has to be entered in the dashboard
+under Environment after the first deploy.
 
 The gate is off by default: with `APP_TOKEN` unset (local development and CI)
 the app is wide open, so nothing about the local run or the tests changes.

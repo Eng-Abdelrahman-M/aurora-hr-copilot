@@ -84,6 +84,8 @@ async def health():
     return {
         "status": "ok",
         "model": llm.model(),
+        # so you can tell at a glance whether a deploy is actually protected
+        "gated": bool(os.environ.get("APP_TOKEN")),
         "mcp_connected": agent.session is not None,
         "mcp_tools": agent.tool_names,
     }
