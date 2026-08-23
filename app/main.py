@@ -94,6 +94,17 @@ OFF_TOPIC_REPLY = (
 )
 
 
+def access_token():
+    """The configured access token, or "" for an open instance.
+
+    APP_PASSWORD is the older name for the same secret. The deployment
+    platform stores it under that name, and it rewrites its own env file on
+    every deploy — so accepting both here is what stops the gate silently
+    turning itself off after a redeploy.
+    """
+    return os.environ.get("APP_TOKEN") or os.environ.get("APP_PASSWORD") or ""
+
+
 def _client_ip(request):
     """Real client address: Traefik terminates TLS, so trust its header."""
     fwd = request.headers.get("x-forwarded-for", "")
@@ -161,7 +172,7 @@ async def chat(req: ChatRequest, request: Request):
     # Token gate, asked for in the conversation instead of by a login prompt.
     # The LLM is never called while a session is locked, which is the whole
     # point: an unauthorised visitor cannot spend the owner's API credit.
-    token = os.environ.get("APP_TOKEN", "")
+    token = access_token()
     if token:
         if sid not in _unlocked:
             granted = secrets.compare_digest(req.message.strip(), token)
@@ -192,7 +203,7 @@ async def health():
         "status": "ok",
         "model": llm.model(),
         # so you can tell at a glance whether a deploy is actually protected
-        "gated": bool(os.environ.get("APP_TOKEN")),
+        "gated": bool(access_token()),
         "mcp_connected": agent.session is not None,
         "mcp_tools": agent.tool_names,
     }
