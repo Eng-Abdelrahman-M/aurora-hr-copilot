@@ -6,22 +6,30 @@
 
 ## Access (for the grader)
 
-The deployment is a single-user instance running on the author's own LLM API
-credit, so the chat UI and `/chat` are behind **HTTP Basic auth**. Opening the
-URL shows the browser's native login prompt:
+This is a single-user instance running on the author's own LLM API credit, so
+the chat UI and `/chat` are gated by a token. **There is no login form** —
+just open the URL with the token attached:
 
-- **Username:** anything (it is not checked)
-- **Password:** _see the submission form_
-
-`/health` is deliberately left open so connectivity can be verified without
-credentials. From an API client:
-
-```bash
-curl -u grader:<password> -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"message":"How many PTO days carry over?"}'
+```
+<deployed-url>/?token=<token>
 ```
 
-The gate is off by default: with `APP_PASSWORD` unset (local development and
-CI) the app is wide open, so nothing about the local run or the tests changes.
+The token is in the submission form. The app sets a cookie on that first
+request, so every later click and every `/chat` call the page makes carries it
+automatically; you only need the `?token=` once.
+
+From an API client, send it as a header instead:
+
+```bash
+curl -H "Authorization: Bearer <token>" <deployed-url>/    # or X-App-Token: <token>
+curl -X POST <deployed-url>/chat -H "Authorization: Bearer <token>"      -H 'Content-Type: application/json'      -d '{"message":"How many PTO days carry over?"}'
+```
+
+`/health` is deliberately ungated, so connectivity and MCP status can be
+checked without the token.
+
+The gate is off by default: with `APP_TOKEN` unset (local development and CI)
+the app is wide open, so nothing about the local run or the tests changes.
 
 ## How to deploy (Render free tier)
 
@@ -30,7 +38,7 @@ CI) the app is wide open, so nothing about the local run or the tests changes.
    Python web service manually with:
    - Build: `pip install -r requirements.txt && python -m app.rag`
    - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-2. Set `OPENAI_API_KEY` and `APP_PASSWORD` in the Render dashboard. Neither
+2. Set `OPENAI_API_KEY` and `APP_TOKEN` in the Render dashboard. Neither
    value is ever committed — `render.yaml` marks both `sync: false`.
 3. Turn auto-deploy **off** and copy the service's *deploy hook* URL into the
    GitHub repo as the `RENDER_DEPLOY_HOOK` Actions secret — CI then deploys

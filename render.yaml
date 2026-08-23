@@ -9,7 +9,7 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
-      - key: APP_PASSWORD      # single-user gate; unset = open to everyone
+      - key: APP_TOKEN         # single-user gate; unset = open to everyone
         sync: false
       - key: LLM_MODEL
         value: gpt-4o-mini

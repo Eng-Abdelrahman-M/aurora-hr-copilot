@@ -34,16 +34,24 @@ def test_app_starts_and_health(monkeypatch):
         assert "Aurora HR Copilot" in r.text
 
 
-def test_password_gate(monkeypatch):
-    """APP_PASSWORD set -> / and /chat need Basic auth; /health stays open."""
+def test_token_gate(monkeypatch):
+    """APP_TOKEN set -> / and /chat need the token; /health stays open."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-used")
-    monkeypatch.setenv("APP_PASSWORD", "s3cret")
+    monkeypatch.setenv("APP_TOKEN", "s3cret-token")
     from fastapi.testclient import TestClient
     from app.main import app
 
     with TestClient(app) as client:
-        assert client.get("/health").status_code == 200      # public
-        assert client.get("/").status_code == 401            # gated
+        assert client.get("/health").status_code == 200        # public
+        assert client.get("/").status_code == 401              # gated
         assert client.post("/chat", json={"message": "hi"}).status_code == 401
-        assert client.get("/", auth=("grader", "wrong")).status_code == 401
-        assert client.get("/", auth=("grader", "s3cret")).status_code == 200
+        assert client.get("/?token=wrong").status_code == 401
+
+        # the token in the URL works and leaves a cookie behind...
+        assert client.get("/?token=s3cret-token").status_code == 200
+        assert client.get("/").status_code == 200              # ...cookie carries it
+
+        # header forms work too, for API clients
+        client.cookies.clear()
+        assert client.get("/", headers={"Authorization": "Bearer s3cret-token"}).status_code == 200
+        assert client.get("/", headers={"X-App-Token": "s3cret-token"}).status_code == 200

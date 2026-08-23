@@ -9,7 +9,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
-      APP_PASSWORD: ${APP_PASSWORD:-}   # unset = no login, which is fine locally
+      APP_TOKEN: ${APP_TOKEN:-}         # unset = no gate, which is fine locally
     volumes:
       # Mock HR tickets the agent creates survive a restart and stay readable
       # on the host — handy when demoing create_mock_hr_ticket.

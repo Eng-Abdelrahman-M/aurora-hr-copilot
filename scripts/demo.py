@@ -5,7 +5,7 @@ uneven rhythm, pauses to "read" each answer, then expands the agent-trace
 panel. You just talk.
 
   python scripts/demo.py                     # local, http://localhost:8100
-  DEMO_URL=https://<app>.onrender.com DEMO_PASSWORD=<pw> python scripts/demo.py
+  DEMO_URL=https://<app>.onrender.com DEMO_TOKEN=<token> python scripts/demo.py
 
   PAUSE=10 python scripts/demo.py            # slower, more talking room
   PAUSE=0  python scripts/demo.py            # advance on Enter — best for recording
@@ -22,7 +22,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 URL = os.environ.get("DEMO_URL", "http://localhost:8100")
-PASSWORD = os.environ.get("DEMO_PASSWORD", "")
+TOKEN = os.environ.get("DEMO_TOKEN", "")
 PAUSE = float(os.environ.get("PAUSE", 6))
 HUMAN = os.environ.get("HUMAN", "1") == "1"
 HEADLESS = os.environ.get("HEADLESS") == "1"
@@ -104,12 +104,13 @@ def main():
                                     slow_mo=0 if HEADLESS else 40)
         page = browser.new_context(
             viewport={"width": 1440, "height": 900},
-            # Basic auth for the gated deployment; ignored when unset.
-            http_credentials={"username": "demo", "password": PASSWORD} if PASSWORD else None,
         ).new_page()
 
-        print(f"\n  opening {URL}")
-        page.goto(URL, timeout=ANSWER_TIMEOUT)
+        # The token rides in the URL once; the app sets a cookie for the rest
+        # of the session, so no login prompt ever appears on camera.
+        target = f"{URL}/?token={TOKEN}" if TOKEN else URL
+        print("\n  opening " + URL)
+        page.goto(target, timeout=ANSWER_TIMEOUT)
         page.wait_for_selector("#q")
 
         # Let the health pill resolve first — it is the on-screen proof that

@@ -85,10 +85,12 @@ groundedness, 100% action safety, latency p50 3.5s / p95 6.1s.
 triggers the deploy hook **only after tests pass**. Set `OPENAI_API_KEY` in the
 Render dashboard and `RENDER_DEPLOY_HOOK` as a GitHub Actions secret.
 
-The deployed instance is gated with HTTP Basic auth (`APP_PASSWORD`) because
-it runs on a personal LLM key — see [deployed.md](deployed.md) for the
-credentials. `/health` stays public. Locally, leave `APP_PASSWORD` unset and
-there is no login at all.
+The deployed instance is gated by a token (`APP_TOKEN`) because it runs on a
+personal LLM key. There is no login form: open `<url>/?token=<token>` once and
+the app sets a cookie for the rest of the session. API clients can send it as
+`Authorization: Bearer <token>` or `X-App-Token: <token>` instead. `/health`
+stays public. Locally, leave `APP_TOKEN` unset and there is no gate at all.
+See [deployed.md](deployed.md) for the token.
 
 Free-tier note: the instance spins down after ~15 min idle; the first request
 cold-starts in ~30–60 s (the UI says so when it happens).
@@ -121,6 +123,6 @@ the agent-trace panel.
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium
 python scripts/demo.py                                        # local
-DEMO_URL=<deployed-url> DEMO_PASSWORD=<pw> python scripts/demo.py   # deployed
+DEMO_URL=<deployed-url> DEMO_TOKEN=<token> python scripts/demo.py   # deployed
 PAUSE=0 python scripts/demo.py                                # advance on Enter
 ```

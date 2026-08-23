@@ -4,9 +4,8 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from app.agent import Agent
 from app import llm
@@ -34,22 +33,34 @@ async def lifespan(app):
 
 app = FastAPI(title="Aurora HR Copilot", lifespan=lifespan)
 
-_basic = HTTPBasic(auto_error=False)
-
-
-def auth(creds: HTTPBasicCredentials | None = Depends(_basic)):
+@app.middleware("http")
+async def token_gate(request, call_next):
     """Single-user gate so a public deploy can't spend the owner's LLM credit.
 
-    APP_PASSWORD unset (local dev, CI) = wide open. Set = HTTP Basic; the
-    browser prompts natively, any username works. /health stays public so
-    the grader and uptime checks can reach it.
+    APP_TOKEN unset (local dev, CI) = wide open. Set = the token must arrive
+    as ?token=..., an app_token cookie, or a Bearer/X-App-Token header. No
+    browser login prompt: open <url>/?token=... once and the cookie carries
+    the rest of the session, including the /chat POSTs the page makes.
+    /health stays public so the grader and uptime checks can reach it.
     """
-    password = os.environ.get("APP_PASSWORD", "")
-    if not password:
-        return
-    if not creds or not secrets.compare_digest(creds.password, password):
-        raise HTTPException(401, "Unauthorized",
-                            headers={"WWW-Authenticate": "Basic"})
+    token = os.environ.get("APP_TOKEN", "")
+    if not token or request.url.path == "/health":
+        return await call_next(request)
+
+    auth_header = request.headers.get("authorization", "")
+    given = (request.query_params.get("token")
+             or request.cookies.get("app_token")
+             or (auth_header[7:] if auth_header[:7].lower() == "bearer " else "")
+             or request.headers.get("x-app-token", ""))
+    if not secrets.compare_digest(given, token):
+        return JSONResponse({"detail": "unauthorized — append ?token=<token>"},
+                            status_code=401)
+
+    response = await call_next(request)
+    if request.query_params.get("token"):
+        # Remember it, so the URL only needs the token once.
+        response.set_cookie("app_token", token, httponly=True, samesite="lax")
+    return response
 
 
 class ChatRequest(BaseModel):
@@ -58,7 +69,7 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest, _=Depends(auth)):
+async def chat(req: ChatRequest):
     sid = req.session_id or uuid.uuid4().hex[:12]
     history = sessions.setdefault(sid, [])
     result = await agent.run(req.message, history=history)
@@ -79,5 +90,5 @@ async def health():
 
 
 @app.get("/")
-async def index(_=Depends(auth)):
+async def index():
     return FileResponse(ROOT / "static" / "index.html")
