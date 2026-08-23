@@ -13,6 +13,10 @@ services:
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       APP_TOKEN: ${APP_TOKEN:-}         # unset = no gate, which is fine locally
+      # Older name for the same secret. Some deployment platforms store it as
+      # APP_PASSWORD and regenerate their env file on every deploy; passing
+      # both through means a redeploy cannot silently disable the gate.
+      APP_PASSWORD: ${APP_PASSWORD:-}
     volumes:
       # Mock HR tickets the agent creates survive a restart and stay readable
       # on the host — handy when demoing create_mock_hr_ticket.
