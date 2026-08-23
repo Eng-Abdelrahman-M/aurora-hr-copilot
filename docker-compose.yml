@@ -2,7 +2,10 @@ services:
   app:
     build: .
     ports:
-      - "8100:8000"          # http://localhost:8100
+      # Bound to loopback on purpose. "8100:8000" would publish the app on
+      # every interface — on a VPS that means the whole internet, bypassing
+      # any reverse proxy and any TLS. localhost:8100 still works locally.
+      - "127.0.0.1:8100:8000"
     environment:
       # Read from your .env (compose loads it automatically). The key is never
       # baked into the image — .env is in .dockerignore.

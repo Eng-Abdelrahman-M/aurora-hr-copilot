@@ -44,7 +44,39 @@ curl -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"messa
 The gate is off by default: with `APP_TOKEN` unset (local development and CI)
 the app is wide open, so nothing about the local run or the tests changes.
 
-## How to deploy (VPS, self-hosted — primary)
+## How to deploy (VPS that already runs a reverse proxy)
+
+If the host already terminates TLS for other sites (gitea, odoo, ...), do not
+start the bundled Caddy — it cannot bind 80/443 while the existing proxy holds
+them. Run the app alone and add one site block to the proxy you already have.
+
+```bash
+cd aurora-hr-copilot
+cat > .env <<'ENV'
+OPENAI_API_KEY=sk-...
+APP_TOKEN=<the access token>        # without this the app is PUBLIC
+ENV
+
+docker compose up -d --build        # binds 127.0.0.1:8100 only
+curl -s localhost:8100/health       # expect "gated":true
+```
+
+Then, in the existing Caddyfile:
+
+```
+aurora.aothman.org {
+	reverse_proxy 127.0.0.1:8100
+}
+```
+
+and reload it (`caddy reload --config /etc/caddy/Caddyfile`, or
+`systemctl reload caddy`). Confirm from outside:
+
+```bash
+curl -s https://aurora.aothman.org/health     # {"status":"ok","gated":true,...}
+```
+
+## How to deploy (VPS with nothing else on 80/443)
 
 The app runs as two containers: itself, and Caddy terminating TLS in front of
 it. Caddy obtains and renews the certificate automatically.
