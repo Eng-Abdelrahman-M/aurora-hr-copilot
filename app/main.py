@@ -1,11 +1,14 @@
 import os
+import re
 import secrets
+import time
 import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from app.agent import Agent
 from app import llm
@@ -23,7 +26,16 @@ if _env.exists():
 
 agent = Agent()
 sessions = {}          # session_id -> message history
-_unlocked = set()      # session_ids that have supplied APP_TOKEN
+_unlocked = {}         # session_id -> last-activity timestamp
+
+# Abuse limits. All three exist for one reason: the deployment runs on a
+# personal API key, so an unattended public URL must not be able to drain it.
+SESSION_TTL = int(os.environ.get("SESSION_TTL", 1800))       # 30 min idle
+RATE_LIMIT = int(os.environ.get("RATE_LIMIT", 20))           # requests...
+RATE_WINDOW = int(os.environ.get("RATE_WINDOW", 300))        # ...per 5 min, per IP
+MAX_MESSAGE_CHARS = int(os.environ.get("MAX_MESSAGE_CHARS", 2000))
+
+_hits = {}             # client ip -> deque of request timestamps
 
 LOCKED_REPLY = (
     "This assistant is private - it runs on a personal API key.\n\n"
@@ -35,6 +47,82 @@ UNLOCKED_REPLY = (
     "I look up the policy documents and your (mock) HR records before "
     "answering, and I cite my sources."
 )
+
+EXPIRED_REPLY = (
+    "This session expired after a period of inactivity.\n\n"
+    "Paste the access token again to continue."
+)
+RATE_LIMITED_REPLY = (
+    "Too many requests from this address. This is a demo instance running on a "
+    "personal API key, so it is rate limited. Please wait a few minutes and "
+    "try again."
+)
+TOO_LONG_REPLY = (
+    f"That message is too long (limit {MAX_MESSAGE_CHARS} characters). "
+    "Please ask a shorter HR question."
+)
+
+
+# Deterministic scope guard. The system prompt also tells the agent to stay in
+# its lane, but a prompt rule is advisory — it can be talked around. These
+# patterns are checked in code, before the model is called at all, so a
+# jailbreak or a "write me a program" costs nothing and cannot be negotiated
+# with. Deliberately narrow: it must never catch a real HR question, so it
+# targets instruction-override phrasing and clearly non-HR deliverables only.
+_BLOCKED = re.compile(
+    r"""
+      ignore\s+(all\s+|any\s+)?(previous|prior|earlier|above)\s+(instructions|prompts?|rules)
+    | disregard\s+(all\s+|your\s+)?(previous|prior|above|the)\s+(instructions|rules|prompt)
+    | (reveal|show|print|repeat|output)\s+(me\s+)?(your|the)\s+(system\s+)?(prompt|instructions)
+    | what\s+(is|are)\s+your\s+(system\s+)?(prompt|instructions)
+    | you\s+are\s+now\s+(a|an|no\s+longer)
+    | (pretend|act)\s+(to\s+be|as\s+if|as\s+a|as\s+an)\b
+    | \bDAN\s+mode\b | \bjailbreak\b | developer\s+mode
+    | write\s+(me\s+)?(a|an|some)?\s*(python|javascript|java|c\+\+|sql|bash|shell)\b
+    | write\s+(me\s+)?(a|an)\s+(poem|song|story|essay|novel|joke|rap)
+    | (solve|calculate)\s+.{0,20}(equation|integral|derivative|homework)
+    | translate\s+.{0,30}\b(into|to)\s+(spanish|french|german|arabic|chinese|japanese)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+OFF_TOPIC_REPLY = (
+    "I only handle Aurora Dynamics HR policy and operations questions — "
+    "things like PTO, remote work, expenses, benefits, equipment, leave and "
+    "workplace conduct. Ask me one of those and I'll look up the policy and "
+    "cite it."
+)
+
+
+def _client_ip(request):
+    """Real client address: Traefik terminates TLS, so trust its header."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_limited(ip, now):
+    hits = _hits.setdefault(ip, deque())
+    while hits and now - hits[0] > RATE_WINDOW:
+        hits.popleft()
+    if len(hits) >= RATE_LIMIT:
+        return True
+    hits.append(now)
+    # keep the table from growing without bound on a long-lived process
+    if len(_hits) > 1000:
+        for stale in [k for k, v in _hits.items() if not v]:
+            del _hits[stale]
+    return False
+
+
+def _expire_sessions(now):
+    for sid, seen in list(_unlocked.items()):
+        if now - seen > SESSION_TTL:
+            del _unlocked[sid]
+            sessions.pop(sid, None)
+
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -51,20 +139,44 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
     sid = req.session_id or uuid.uuid4().hex[:12]
+    now = time.time()
+    _expire_sessions(now)
+
+    def reply(answer, locked=None, status=200):
+        body = {"session_id": sid, "answer": answer, "citations": [], "trace": []}
+        if locked is not None:
+            body["locked"] = locked
+        return JSONResponse(body, status_code=status)
+
+    # Rate limit first: it must apply to locked sessions too, otherwise the
+    # gate itself is a free brute-force oracle.
+    if _rate_limited(_client_ip(request), now):
+        return reply(RATE_LIMITED_REPLY, status=429)
+
+    if len(req.message) > MAX_MESSAGE_CHARS:
+        return reply(TOO_LONG_REPLY)
 
     # Token gate, asked for in the conversation instead of by a login prompt.
     # The LLM is never called while a session is locked, which is the whole
     # point: an unauthorised visitor cannot spend the owner's API credit.
     token = os.environ.get("APP_TOKEN", "")
-    if token and sid not in _unlocked:
-        granted = secrets.compare_digest(req.message.strip(), token)
-        if granted:
-            _unlocked.add(sid)
-        return {"session_id": sid, "locked": not granted,
-                "answer": UNLOCKED_REPLY if granted else LOCKED_REPLY,
-                "citations": [], "trace": []}
+    if token:
+        if sid not in _unlocked:
+            granted = secrets.compare_digest(req.message.strip(), token)
+            if granted:
+                _unlocked[sid] = now
+                return reply(UNLOCKED_REPLY, locked=False)
+            # A session id we have never seen is indistinguishable from one
+            # that timed out, so say "expired" only for ids with history.
+            return reply(EXPIRED_REPLY if sid in sessions else LOCKED_REPLY,
+                         locked=True)
+        _unlocked[sid] = now      # sliding window: activity keeps it alive
+
+    # Checked in code, not left to the prompt: refuse before the model runs.
+    if _BLOCKED.search(req.message):
+        return reply(OFF_TOPIC_REPLY)
 
     history = sessions.setdefault(sid, [])
     result = await agent.run(req.message, history=history)
