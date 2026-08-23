@@ -31,7 +31,7 @@ _unlocked = {}         # session_id -> last-activity timestamp
 # Abuse limits. All three exist for one reason: the deployment runs on a
 # personal API key, so an unattended public URL must not be able to drain it.
 SESSION_TTL = int(os.environ.get("SESSION_TTL", 1800))       # 30 min idle
-RATE_LIMIT = int(os.environ.get("RATE_LIMIT", 20))           # requests...
+RATE_LIMIT = int(os.environ.get("RATE_LIMIT", 40))           # requests...
 RATE_WINDOW = int(os.environ.get("RATE_WINDOW", 300))        # ...per 5 min, per IP
 MAX_MESSAGE_CHARS = int(os.environ.get("MAX_MESSAGE_CHARS", 2000))
 
@@ -106,10 +106,19 @@ def access_token():
 
 
 def _client_ip(request):
-    """Real client address: Traefik terminates TLS, so trust its header."""
+    """Real client address, behind the reverse proxy.
+
+    X-Forwarded-For is appended to, so its FIRST entry is whatever the client
+    sent — trusting it lets anyone reset their own rate limit by spoofing a
+    header. The proxy's own X-Real-Ip is authoritative; failing that, the LAST
+    XFF entry is the one our proxy added.
+    """
+    real = request.headers.get("x-real-ip", "").strip()
+    if real:
+        return real
     fwd = request.headers.get("x-forwarded-for", "")
     if fwd:
-        return fwd.split(",")[0].strip()
+        return fwd.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -161,9 +170,17 @@ async def chat(req: ChatRequest, request: Request):
             body["locked"] = locked
         return JSONResponse(body, status_code=status)
 
-    # Rate limit first: it must apply to locked sessions too, otherwise the
-    # gate itself is a free brute-force oracle.
-    if _rate_limited(_client_ip(request), now):
+    # The correct token always gets through, even while rate limited —
+    # otherwise a burst of traffic locks the legitimate user out of their own
+    # instance. This is not a brute-force hole: a wrong guess still counts
+    # against the limit below, so only someone who already has the token
+    # benefits.
+    token = access_token()
+    unlocking = bool(token) and secrets.compare_digest(req.message.strip(), token)
+
+    # Rate limit otherwise applies to locked sessions too, so the gate cannot
+    # be used as a free guessing oracle.
+    if not unlocking and _rate_limited(_client_ip(request), now):
         return reply(RATE_LIMITED_REPLY, status=429)
 
     if len(req.message) > MAX_MESSAGE_CHARS:
@@ -172,11 +189,9 @@ async def chat(req: ChatRequest, request: Request):
     # Token gate, asked for in the conversation instead of by a login prompt.
     # The LLM is never called while a session is locked, which is the whole
     # point: an unauthorised visitor cannot spend the owner's API credit.
-    token = access_token()
     if token:
         if sid not in _unlocked:
-            granted = secrets.compare_digest(req.message.strip(), token)
-            if granted:
+            if unlocking:
                 _unlocked[sid] = now
                 return reply(UNLOCKED_REPLY, locked=False)
             # A session id we have never seen is indistinguishable from one

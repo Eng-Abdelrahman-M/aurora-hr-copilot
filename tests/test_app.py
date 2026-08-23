@@ -126,3 +126,39 @@ def test_scope_guard_blocks_before_the_model(monkeypatch):
     # a legitimate HR request with similar wording still goes through
     assert main._BLOCKED.search("can you draft the email to my manager?") is None
     assert main._BLOCKED.search("write up my PTO request please") is None
+
+
+def test_token_survives_rate_limit(monkeypatch):
+    """A rate-limited client can still unlock with the correct token, but a
+    wrong guess is still refused — the limit is not a lockout of the owner."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-used")
+    monkeypatch.setenv("APP_TOKEN", "s3cret-token")
+    from fastapi.testclient import TestClient
+    from app import main
+
+    monkeypatch.setattr(main, "RATE_LIMIT", 2)
+    main._hits.clear(); main._unlocked.clear(); main.sessions.clear()
+
+    with TestClient(main.app) as client:
+        for _ in range(2):
+            client.post("/chat", json={"message": "guess"})
+        # limit reached: ordinary traffic is refused...
+        assert client.post("/chat", json={"message": "hello"}).status_code == 429
+        # ...a wrong token too...
+        assert client.post("/chat", json={"message": "wrong"}).status_code == 429
+        # ...but the real token still gets in
+        r = client.post("/chat", json={"message": "s3cret-token"})
+        assert r.status_code == 200 and r.json()["locked"] is False
+
+
+def test_forwarded_for_cannot_be_spoofed(monkeypatch):
+    """The first X-Forwarded-For entry is client-controlled, so it must not
+    key the rate limiter — otherwise anyone resets their own quota."""
+    from app import main
+    class R:
+        def __init__(self, h): self.headers = h; self.client = None
+    # proxy's own header wins
+    assert main._client_ip(R({"x-real-ip": "9.9.9.9",
+                              "x-forwarded-for": "1.2.3.4, 9.9.9.9"})) == "9.9.9.9"
+    # without it, the LAST entry (added by our proxy) is used, not the first
+    assert main._client_ip(R({"x-forwarded-for": "1.2.3.4, 9.9.9.9"})) == "9.9.9.9"
