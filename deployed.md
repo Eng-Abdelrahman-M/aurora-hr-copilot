@@ -44,7 +44,54 @@ curl -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"messa
 The gate is off by default: with `APP_TOKEN` unset (local development and CI)
 the app is wide open, so nothing about the local run or the tests changes.
 
-## How to deploy (Render free tier)
+## How to deploy (VPS, self-hosted — primary)
+
+The app runs as two containers: itself, and Caddy terminating TLS in front of
+it. Caddy obtains and renews the certificate automatically.
+
+Prerequisites: a DNS A record for the chosen domain pointing at the VPS, and
+ports 80 and 443 open.
+
+```bash
+ssh user@your-vps
+git clone https://github.com/Eng-Abdelrahman-M/aurora-hr-copilot.git
+cd aurora-hr-copilot
+
+cat > .env <<'ENV'
+DOMAIN=hr.example.org
+OPENAI_API_KEY=sk-...
+APP_TOKEN=<the access token>
+ENV
+
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+The first build takes a few minutes: it installs dependencies and bakes the
+Chroma index plus the ~80 MB embedding model into the image, so the container
+answers its first request immediately.
+
+Verify:
+
+```bash
+curl -s https://hr.example.org/health     # {"status":"ok", "gated":true, ...}
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+`APP_TOKEN` and `DOMAIN` are declared with `:?`, so the stack refuses to start
+rather than coming up unprotected or without a certificate.
+
+Update after a push:
+
+```bash
+git pull && docker compose -f docker-compose.prod.yml up -d --build
+```
+
+**No cold starts.** `restart: unless-stopped` keeps it running, so the first
+request after an idle period is as fast as any other — unlike the free tier
+described below.
+
+## How to deploy (Render free tier — alternative)
 
 1. Create a new **Blueprint** on Render pointing at this repository
    ([render.yaml](render.yaml) defines the service), or create a single

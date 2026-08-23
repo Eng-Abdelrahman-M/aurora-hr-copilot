@@ -1,0 +1,16 @@
+# Automatic HTTPS: Caddy fetches and renews a Let's Encrypt certificate for
+# $DOMAIN on its own. Nothing to configure, no certbot cron.
+{$DOMAIN} {
+	reverse_proxy app:8000
+	encode gzip
+
+	# The agent can take a while on a multi-tool turn; don't cut it off.
+	@chat path /chat
+	handle @chat {
+		reverse_proxy app:8000 {
+			transport http {
+				response_header_timeout 300s
+			}
+		}
+	}
+}
