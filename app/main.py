@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from app.agent import Agent
 from app import llm
@@ -22,7 +22,19 @@ if _env.exists():
             os.environ.setdefault(k.strip(), v.strip())
 
 agent = Agent()
-sessions = {}
+sessions = {}          # session_id -> message history
+_unlocked = set()      # session_ids that have supplied APP_TOKEN
+
+LOCKED_REPLY = (
+    "This assistant is private - it runs on a personal API key.\n\n"
+    "Paste the access token to start. You will only be asked once per session."
+)
+UNLOCKED_REPLY = (
+    "Access granted. Ask me anything about Aurora Dynamics HR policy — PTO, "
+    "remote work, expenses, benefits, equipment, leave or workplace conduct. "
+    "I look up the policy documents and your (mock) HR records before "
+    "answering, and I cite my sources."
+)
 
 @asynccontextmanager
 async def lifespan(app):
@@ -33,36 +45,6 @@ async def lifespan(app):
 
 app = FastAPI(title="Aurora HR Copilot", lifespan=lifespan)
 
-@app.middleware("http")
-async def token_gate(request, call_next):
-    """Single-user gate so a public deploy can't spend the owner's LLM credit.
-
-    APP_TOKEN unset (local dev, CI) = wide open. Set = the token must arrive
-    as ?token=..., an app_token cookie, or a Bearer/X-App-Token header. No
-    browser login prompt: open <url>/?token=... once and the cookie carries
-    the rest of the session, including the /chat POSTs the page makes.
-    /health stays public so the grader and uptime checks can reach it.
-    """
-    token = os.environ.get("APP_TOKEN", "")
-    if not token or request.url.path == "/health":
-        return await call_next(request)
-
-    auth_header = request.headers.get("authorization", "")
-    given = (request.query_params.get("token")
-             or request.cookies.get("app_token")
-             or (auth_header[7:] if auth_header[:7].lower() == "bearer " else "")
-             or request.headers.get("x-app-token", ""))
-    if not secrets.compare_digest(given, token):
-        return JSONResponse({"detail": "unauthorized — append ?token=<token>"},
-                            status_code=401)
-
-    response = await call_next(request)
-    if request.query_params.get("token"):
-        # Remember it, so the URL only needs the token once.
-        response.set_cookie("app_token", token, httponly=True, samesite="lax")
-    return response
-
-
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
@@ -71,6 +53,19 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(req: ChatRequest):
     sid = req.session_id or uuid.uuid4().hex[:12]
+
+    # Token gate, asked for in the conversation instead of by a login prompt.
+    # The LLM is never called while a session is locked, which is the whole
+    # point: an unauthorised visitor cannot spend the owner's API credit.
+    token = os.environ.get("APP_TOKEN", "")
+    if token and sid not in _unlocked:
+        granted = secrets.compare_digest(req.message.strip(), token)
+        if granted:
+            _unlocked.add(sid)
+        return {"session_id": sid, "locked": not granted,
+                "answer": UNLOCKED_REPLY if granted else LOCKED_REPLY,
+                "citations": [], "trace": []}
+
     history = sessions.setdefault(sid, [])
     result = await agent.run(req.message, history=history)
     history.append({"role": "user", "content": req.message})

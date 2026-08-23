@@ -86,10 +86,11 @@ triggers the deploy hook **only after tests pass**. Set `OPENAI_API_KEY` in the
 Render dashboard and `RENDER_DEPLOY_HOOK` as a GitHub Actions secret.
 
 The deployed instance is gated by a token (`APP_TOKEN`) because it runs on a
-personal LLM key. There is no login form: open `<url>/?token=<token>` once and
-the app sets a cookie for the rest of the session. API clients can send it as
-`Authorization: Bearer <token>` or `X-App-Token: <token>` instead. `/health`
-stays public. Locally, leave `APP_TOKEN` unset and there is no gate at all.
+personal LLM key — but there is no login page. The assistant simply asks for
+the token in its first message; paste it and the session unlocks. While
+locked, the app never calls the LLM, so nobody can spend the key. `/health`
+stays public and reports `"gated": true/false` so you can confirm a deploy is
+protected. Locally, leave `APP_TOKEN` unset and there is no gate at all.
 See [deployed.md](deployed.md) for the token.
 
 Free-tier note: the instance spins down after ~15 min idle; the first request

@@ -111,7 +111,7 @@
     <div class="sub">Answers are grounded in Aurora Dynamics policy documents and cited inline.</div>
   </header>
   <div id="log">
-    <div class="msg bot">Hi! I'm the Aurora HR Copilot. Ask me about PTO, remote work, expenses, benefits, equipment, leave, or workplace policies — or pick a demo task on the left. I look up policy documents and your (mock) HR records before answering, and I cite my sources.</div>
+    <div class="msg bot" id="greeting">Hi! I'm the Aurora HR Copilot. Ask me about PTO, remote work, expenses, benefits, equipment, leave, or workplace policies — or pick a demo task on the left. I look up policy documents and your (mock) HR records before answering, and I cite my sources.</div>
   </div>
   <div class="typing" id="typing">Working — calling tools…</div>
   <form id="f">
@@ -126,6 +126,13 @@ const form = document.getElementById('f'), q = document.getElementById('q'), sen
 let sessionId = null;
 
 fetch('/health').then(r => r.json()).then(h => {
+  if (h.gated) {
+    // Private deployment: ask for the token in the conversation, no login form.
+    document.getElementById('greeting').textContent =
+      "Hi! I'm the Aurora HR Copilot. This deployment is private, so before we "
+      + "start, please paste your access token below. You'll only be asked once.";
+    q.placeholder = 'Paste your access token…';
+  }
   document.getElementById('health').innerHTML =
     `<span class="dot ${h.mcp_connected ? 'ok' : ''}"></span>` +
     `MCP ${h.mcp_connected ? 'connected' : 'offline'} · ${h.mcp_tools.length} tools<br>` +
@@ -188,6 +195,7 @@ async function ask(text) {
     const data = await r.json();
     sessionId = data.session_id;
     renderExtras(add('bot', data.answer), data);
+    if (data.locked === false) q.placeholder = 'Ask an HR question…';
   } catch (e) {
     add('bot', 'Something went wrong (' + e.message + '). The service may be cold-starting — try again in ~30 seconds.');
   } finally {

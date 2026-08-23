@@ -93,8 +93,17 @@ def send_message(page, message, button_label):
 
 
 def wait_for_answer(page):
-    """The UI disables #send while a turn is in flight."""
-    page.wait_for_selector("#send[disabled]", timeout=15_000)
+    """The UI disables #send while a turn is in flight.
+
+    The token-unlock turn never reaches the LLM, so it can finish before we
+    observe the disabled state — missing that is fine, not an error. The UI
+    re-enables #send only after the reply is rendered, so the second wait is
+    still a correct completion signal on its own.
+    """
+    try:
+        page.wait_for_selector("#send[disabled]", timeout=5_000)
+    except Exception:
+        pass
     page.wait_for_selector("#send:not([disabled])", timeout=ANSWER_TIMEOUT)
 
 
@@ -106,11 +115,8 @@ def main():
             viewport={"width": 1440, "height": 900},
         ).new_page()
 
-        # The token rides in the URL once; the app sets a cookie for the rest
-        # of the session, so no login prompt ever appears on camera.
-        target = f"{URL}/?token={TOKEN}" if TOKEN else URL
         print("\n  opening " + URL)
-        page.goto(target, timeout=ANSWER_TIMEOUT)
+        page.goto(URL, timeout=ANSWER_TIMEOUT)
         page.wait_for_selector("#q")
 
         # Let the health pill resolve first — it is the on-screen proof that
@@ -118,6 +124,14 @@ def main():
         page.wait_for_selector("#health .dot.ok", timeout=60_000)
         page.locator("#health").hover()
         print("  MCP connected (health pill green)\n")
+
+        # A gated deployment asks for the token in the chat itself. Unlock it
+        # before the narration starts so the recording opens on a ready app.
+        if TOKEN:
+            page.fill("#q", TOKEN)
+            page.click("#send")
+            wait_for_answer(page)
+            print("  session unlocked with DEMO_TOKEN")
         pause("Point at the health pill, then start Task 1")
 
         for i, (cue, message, button_label) in enumerate(STEPS, 1):

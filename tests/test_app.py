@@ -34,24 +34,33 @@ def test_app_starts_and_health(monkeypatch):
         assert "Aurora HR Copilot" in r.text
 
 
-def test_token_gate(monkeypatch):
-    """APP_TOKEN set -> / and /chat need the token; /health stays open."""
+def test_chat_token_gate(monkeypatch):
+    """APP_TOKEN set -> the assistant asks for the token and refuses to answer
+    (and never calls the LLM) until the right one is pasted into the chat."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-not-used")
     monkeypatch.setenv("APP_TOKEN", "s3cret-token")
     from fastapi.testclient import TestClient
     from app.main import app
 
     with TestClient(app) as client:
-        assert client.get("/health").status_code == 200        # public
-        assert client.get("/").status_code == 401              # gated
-        assert client.post("/chat", json={"message": "hi"}).status_code == 401
-        assert client.get("/?token=wrong").status_code == 401
+        assert client.get("/").status_code == 200          # page is public
+        health = client.get("/health").json()
+        assert health["gated"] is True
 
-        # the token in the URL works and leaves a cookie behind...
-        assert client.get("/?token=s3cret-token").status_code == 200
-        assert client.get("/").status_code == 200              # ...cookie carries it
+        # a normal question while locked: asked for the token, no LLM call
+        r = client.post("/chat", json={"message": "How many PTO days do I get?"})
+        assert r.status_code == 200
+        body = r.json()
+        sid = body["session_id"]
+        assert body["locked"] is True
+        assert "access token" in body["answer"].lower()
+        assert body["trace"] == [] and body["citations"] == []
 
-        # header forms work too, for API clients
-        client.cookies.clear()
-        assert client.get("/", headers={"Authorization": "Bearer s3cret-token"}).status_code == 200
-        assert client.get("/", headers={"X-App-Token": "s3cret-token"}).status_code == 200
+        # wrong token stays locked
+        wrong = client.post("/chat", json={"message": "hunter2", "session_id": sid}).json()
+        assert wrong["locked"] is True
+
+        # right token unlocks that session
+        ok = client.post("/chat", json={"message": "s3cret-token", "session_id": sid}).json()
+        assert ok["locked"] is False
+        assert "access granted" in ok["answer"].lower()

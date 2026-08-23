@@ -7,37 +7,39 @@
 ## Access (for the grader)
 
 This is a single-user instance running on the author's own LLM API credit, so
-the chat UI and `/chat` are gated by a token. **There is no login form** —
-just open the URL with the token attached:
+the assistant asks for an access token **in the chat itself**. There is no
+login page and no browser password prompt:
 
-```
-<deployed-url>/?token=<token>
-```
+1. Open the deployed URL — the page loads normally.
+2. The assistant's first message asks for the access token.
+3. Paste the token (it is in the submission form) and send it.
+4. It replies "Access granted" and the session is unlocked for good.
 
-The token is in the submission form. The app sets a cookie on that first
-request, so every later click and every `/chat` call the page makes carries it
-automatically; you only need the `?token=` once.
+Until the right token is pasted, the app answers every message with the same
+request and **never calls the LLM**, so an unauthorised visitor cannot spend
+the owner's API credit.
 
-From an API client, send it as a header instead:
-
-```bash
-curl -H "Authorization: Bearer <token>" <deployed-url>/    # or X-App-Token: <token>
-curl -X POST <deployed-url>/chat -H "Authorization: Bearer <token>"      -H 'Content-Type: application/json'      -d '{"message":"How many PTO days carry over?"}'
-```
-
-`/health` is deliberately ungated, so connectivity and MCP status can be
-checked without the token. It also reports `"gated": true/false`, which is the
-quickest way to confirm the deployment actually has `APP_TOKEN` set:
+`/health` is ungated so connectivity and MCP status can be checked without the
+token. It also reports whether the gate is active:
 
 ```bash
 curl -s <deployed-url>/health
-# {"status":"ok", ..., "gated":true, "mcp_connected":true, ...}
+# {"status":"ok", ..., "gated":true, "mcp_connected":true, "mcp_tools":[...]}
 ```
 
-If `gated` is `false`, `APP_TOKEN` is missing from the environment and the app
-is open to anyone. `render.yaml` declares it with `sync: false`, which means
-Render does **not** supply a value — it has to be entered in the dashboard
-under Environment after the first deploy.
+`"gated": false` means `APP_TOKEN` is missing from the environment and the app
+is open to anyone. `render.yaml` declares it with `sync: false`, so Render does
+**not** supply a value — it must be entered in the dashboard under Environment
+after the first deploy.
+
+From an API client, send the token as the first `/chat` message and reuse the
+`session_id` it returns:
+
+```bash
+curl -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"message":"<token>"}'
+# -> {"session_id":"abc123...", "locked":false, "answer":"Access granted. ..."}
+curl -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"message":"How many PTO days carry over?","session_id":"abc123..."}'
+```
 
 The gate is off by default: with `APP_TOKEN` unset (local development and CI)
 the app is wide open, so nothing about the local run or the tests changes.
