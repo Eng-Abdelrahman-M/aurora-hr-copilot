@@ -88,4 +88,8 @@ async def health():
 
 @app.get("/")
 async def index():
-    return FileResponse(ROOT / "static" / "index.html")
+    # no-cache = revalidate every time (the ETag still yields a cheap 304).
+    # Without it browsers heuristically reuse the old page, which silently
+    # hides UI changes such as the access-token prompt.
+    return FileResponse(ROOT / "static" / "index.html",
+                        headers={"Cache-Control": "no-cache"})
