@@ -45,6 +45,28 @@ curl -X POST <deployed-url>/chat -H 'Content-Type: application/json' -d '{"messa
 The gate is off by default: with `APP_TOKEN` unset (local development and CI)
 the app is wide open, so nothing about the local run or the tests changes.
 
+## Abuse protection
+
+The instance is public and runs on a personal API key, so four limits apply,
+all enforced in code before the model is ever called:
+
+| Guard | Default | Env var |
+|---|---|---|
+| Access token required in chat | on when set | `APP_TOKEN` (or `APP_PASSWORD`) |
+| Idle session expiry | 30 min | `SESSION_TTL` |
+| Requests per IP | 20 per 5 min | `RATE_LIMIT` / `RATE_WINDOW` |
+| Max message length | 2000 chars | `MAX_MESSAGE_CHARS` |
+
+- The rate limit applies to **locked** sessions too, so the gate cannot be
+  used as a free brute-force oracle.
+- A **scope guard** rejects instruction-override and clearly non-HR requests
+  ("ignore previous instructions", "show me your system prompt", "write me a
+  python script") in code — the system prompt says the same thing, but a
+  prompt rule is advisory and can be talked around, so it is not the only
+  line of defence. Blocked input never reaches the LLM and costs nothing.
+- Sessions live in memory and expire on idle; a restart clears them, so the
+  token has to be entered again.
+
 ## How it is deployed
 
 Self-hosted on a VPS, managed by [Dokploy](https://dokploy.com):
