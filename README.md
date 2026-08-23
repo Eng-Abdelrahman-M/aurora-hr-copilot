@@ -6,7 +6,7 @@ An agentic AI system for HR policy and operations at the (hypothetical) company
 an **MCP server** (employee records, PTO balances, benefits, mock HR actions),
 and answers with inline citations and a visible tool-call trace.
 
-**Deployed app:** see [deployed.md](deployed.md) · **Design & evaluation:**
+**Deployed app:** <https://aurora.aothman.org> ([details](deployed.md)) · **Design & evaluation:**
 [design-and-evaluation.md](design-and-evaluation.md) · **AI tooling used:**
 [ai-tooling.md](ai-tooling.md)
 
@@ -78,23 +78,23 @@ Latest results: [evaluation/results.md](evaluation/results.md) — 96% workflow
 completion, 100% tool-selection accuracy, 100% citation accuracy, 100%
 groundedness, 100% action safety, latency p50 3.5s / p95 6.1s.
 
-## Deployment (Render)
+## Deployment
 
-[render.yaml](render.yaml) defines a single free-tier web service.
-`autoDeploy` is off: the GitHub Actions [CI workflow](.github/workflows/ci.yml)
-triggers the deploy hook **only after tests pass**. Set `OPENAI_API_KEY` in the
-Render dashboard and `RENDER_DEPLOY_HOOK` as a GitHub Actions secret.
+Live at **<https://aurora.aothman.org>** — self-hosted on a VPS behind
+Traefik (Dokploy), with an automatically renewed Let's Encrypt certificate.
+The container binds `127.0.0.1:8100` and is reachable only through the proxy.
+Secrets come from the platform's environment settings. Because the container
+stays resident there are no cold starts. See [deployed.md](deployed.md).
 
-The deployed instance is gated by a token (`APP_TOKEN`) because it runs on a
-personal LLM key — but there is no login page. The assistant simply asks for
-the token in its first message; paste it and the session unlocks. While
-locked, the app never calls the LLM, so nobody can spend the key. `/health`
-stays public and reports `"gated": true/false` so you can confirm a deploy is
-protected. Locally, leave `APP_TOKEN` unset and there is no gate at all.
-See [deployed.md](deployed.md) for the token.
+The repo also ships [render.yaml](render.yaml) for a free-tier Render
+deployment, and the GitHub Actions [CI workflow](.github/workflows/ci.yml)
+triggers a deploy hook only after tests pass.
 
-Free-tier note: the instance spins down after ~15 min idle; the first request
-cold-starts in ~30–60 s (the UI says so when it happens).
+The deployment is gated by a token (`APP_TOKEN`) because it runs on a personal
+LLM key — but there is no login page. The assistant asks for the token in its
+first message; paste it and the session unlocks. While locked, the app never
+calls the LLM, so nobody can spend the key. `/health` stays public and reports
+`"gated": true/false`. Locally, leave `APP_TOKEN` unset and there is no gate.
 
 ## Demo tasks (reproducible from the UI)
 
