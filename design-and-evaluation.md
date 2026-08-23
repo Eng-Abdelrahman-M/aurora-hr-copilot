@@ -18,7 +18,7 @@
 │   · lookup_employee_profile / check_pto_balance / lookup_benefits_status → mock    │
 │   · create_mock_hr_ticket / draft_hr_email        →  mock actions                  │
 │  RAG index: Chroma (persistent, .chroma/) + local ONNX MiniLM embeddings           │
-│  corpus/ 10 policy docs (md, html, txt) · mock_data/ JSON                          │
+│  corpus/ 10 policy docs (md, html) · mock_data/ JSON                               │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -35,10 +35,10 @@
 - **The RAG index lives inside the MCP server process.** Retrieval is a tool
   (`search_policy_documents`), so the agent's only path to policy text is
   through MCP — which makes the trace complete by construction.
-- **Chunking: heading-aware.** Every `##` (md) / `<h2>` (html) / numbered
-  heading (txt) becomes one chunk carrying `doc_id`, `title`, `section`
+- **Chunking: heading-aware.** Every `##` (md) / `<h2>` (html) becomes one
+  chunk carrying `doc_id`, `title`, `section`
   metadata. Policy documents are naturally section-structured; sections are
-  the correct citation unit (`[POL-PTO-001 § 3. Requesting PTO]`). 61 chunks
+  the correct citation unit (`[POL-PTO-001 § 3. Requesting PTO]`). 60 chunks
   from 10 documents — no overlap needed at this granularity, and chunk ids
   are deterministic (`doc_id::index`), so re-ingestion is idempotent.
 - **Embeddings: Chroma default (all-MiniLM-L6-v2, ONNX, local).** Free, no
@@ -59,7 +59,9 @@
     creating a ticket.
   - Sensitive matters (harassment, threats) retrieve the Code of Conduct and
     recommend escalation to People Operations, not self-service fixes.
-  - Missing/unknown employee IDs → the agent asks, it never assumes.
+  - Unknown or missing identity → the agent asks who you are, never assumes.
+    Lookup tools accept a name or an employee ID, resolved by one shared
+    helper so every people-data tool behaves the same way.
 - **Failure handling.** MCP tool errors are caught and fed back to the LLM as
   text ("tool unavailable → tell the user, suggest People Operations"), so a
   broken tool degrades to an honest answer instead of a 500.
@@ -73,9 +75,9 @@ discovered by the client at startup (`/health` lists them live). Summary:
 |---|---|---|
 | search_policy_documents | query: str, k: int = 5 | RAG index |
 | get_policy_section | doc_id: str, section_query: str = "" | RAG index |
-| lookup_employee_profile | employee_id: str | mock_data/employees.json |
-| check_pto_balance | employee_id: str | mock_data/pto_balances.json |
-| lookup_benefits_status | employee_id: str | mock_data/benefits.json |
+| lookup_employee_profile | employee: str (name or ID) | mock_data/employees.json |
+| check_pto_balance | employee: str (name or ID) | mock_data/pto_balances.json |
+| lookup_benefits_status | employee: str (name or ID) | mock_data/benefits.json |
 | create_mock_hr_ticket | employee_id, category, summary, details | writes mock_data/tickets.json |
 | draft_hr_email | recipient, subject, key_points | returns draft, sends nothing |
 
@@ -91,20 +93,24 @@ tasks (grader reproducibility).
 
 ## The two demo agentic tasks
 
-**Task 1 — PTO request guidance** ("I'm EMP003. Can I take 3 days of PTO the
-week of September 21? If it's possible, help me get it requested.")
+**Task 1 — PTO request guidance** ("Hi, I'm Abdelrahman Othman. Can I take 3
+days off the week of September 21? I'd like to get it requested if I'm able
+to.") Note the user gives a name, not an ID — every people-data tool resolves
+either.
 Expected tool sequence:
-1. `check_pto_balance(EMP003)` → 2.5 vacation days (insufficient)
+1. `check_pto_balance("Abdelrahman Othman")` → EMP003, 2.5 vacation days
+   (insufficient)
 2. `search_policy_documents("PTO request …")` → notice rules [POL-PTO-001 §3],
    borrowing up to 3 days [POL-PTO-001 §7]
 3. Agent proposes borrowing 0.5 days, asks for confirmation
 4. On explicit "yes": `create_mock_hr_ticket(EMP003, pto, …)` → TICKET-####
    (mock), and the answer explains manager approval comes next.
 
-**Task 2 — Remote work abroad** ("I'm EMP002 and I want to work from Portugal
-for 6 weeks this fall. Am I allowed, and what do I need to do?")
+**Task 2 — Remote work abroad** ("I want to work from Portugal for six weeks
+this fall. Does my role and work setup allow that, and what do I need to do?")
 Expected tool sequence:
-1. `lookup_employee_profile(EMP002)` → US-based, remote, manager Sarah Chen
+1. `lookup_employee_profile("Abdelrahman Othman")` → US-based, hybrid,
+   manager Elena Petrova
 2. `search_policy_documents("working from another country …")` →
    cross-border rules [POL-RW-002 §3] + security-abroad rules [POL-SEC-005 §4]
 3. Answer: allowed with People Operations **and** Legal approval, ≥3 weeks
@@ -121,35 +127,44 @@ tools, expected cited documents, and gold keywords:
 programmatic (no judge model): see metric definitions in
 [evaluation/run_eval.py](evaluation/run_eval.py).
 
-Results (live run, gpt-4o-mini, 2026-08-07 —
+Results (live run, gpt-4o-mini, 2026-08-18 —
 [full table](evaluation/results.md)):
 
 | Metric | Score |
 |---|---|
 | Workflow completion | 96% (25/26) |
 | Tool selection accuracy | 100% |
-| Citation accuracy (policy questions) | 88% |
+| Citation accuracy (policy questions) | 100% |
 | Groundedness (no uncited doc references) | 100% |
 | Gold-keyword answer match | 96% |
 | Action safety (no unconfirmed writes) | 100% |
-| Latency p50 / p95 (warm) | 2.5 s / 4.8 s |
+| Latency p50 / p95 (warm) | 3.5 s / 6.1 s |
+
+The single miss is Q14, a multi-document question whose gold keyword the
+answer paraphrases rather than states; tools, citations and groundedness are
+all correct on it.
 
 Cold start on the free tier adds ~30–60 s to the *first* request only
 (service spin-up); warm latency is as above.
 
 ### Ablation — retrieval k
 
-Same first-15-question subset, k forced to 1 vs the default 5
-([results_k1.md](evaluation/results_k1.md)):
+All 26 questions, same order, temperature 0; only `RAG_K` changes
+(see [results.md](evaluation/results.md)):
 
 | Metric | k = 5 | k = 1 |
 |---|---|---|
-| Workflow completion | 100% | 93% |
-| Citation accuracy | 93% | 87% |
+| Workflow completion | 96% | 92% |
+| Tool selection accuracy | 100% | 96% |
+| Citation accuracy | 100% | 100% |
+| Gold-keyword match | 96% | 92% |
+| Latency p50 / p95 | 3.5s / 6.1s | 2.6s / 4.4s |
 
-With k=1 the agent sees a single section, which breaks exactly the
-multi-section questions (e.g. carryover + deadline, chair + stipend). k=5
-costs ~1k extra prompt tokens and removes that failure class.
+With k=1 the agent sees one section per search. What it cites stays accurate,
+but a single section often does not carry the whole answer: it drops a
+question on completion and one on tool selection. The saving is ~0.9 s at
+p50; k=5 costs ~1k extra prompt tokens and removes that failure class, which
+is why k=5 is the default.
 
 ### What the evaluation caught during development (kept honest)
 

@@ -50,6 +50,9 @@
   #log { flex: 1; overflow-y: auto; padding: 26px 8%; display: flex;
          flex-direction: column; gap: 18px; }
   .msg { max-width: 78%; line-height: 1.55; font-size: 14px; white-space: pre-wrap; }
+  .msg .mdh { display: block; margin: 10px 0 2px; font-size: 14px; }
+  .msg .mdh:first-child { margin-top: 0; }
+  .msg code { background: rgba(127,140,170,.16); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
   .user { align-self: flex-end; background: var(--accent); color: #fff;
           padding: 11px 15px; border-radius: 14px 14px 4px 14px; }
   .bot  { align-self: flex-start; background: var(--card); border: 1px solid var(--border);
@@ -89,15 +92,15 @@
     <div><b>Aurora HR Copilot</b><small>People Operations assistant</small></div>
   </div>
   <div class="side-h">Demo tasks</div>
-  <button class="task" data-q="I'm EMP003. Can I take 3 days of PTO the week of September 21? If it's possible, help me get it requested.">
+  <button class="task" data-q="Hi, I'm Abdelrahman Othman. Can I take 3 days off the week of September 21? I'd like to get it requested if I'm able to.">
     <b>PTO request guidance</b>Balance check → policy → manager approval → ticket
   </button>
-  <button class="task" data-q="I'm EMP002 and I want to work from Portugal for 6 weeks this fall. Am I allowed, and what do I need to do?">
+  <button class="task" data-q="I'm Abdelrahman Othman. I want to work from Portugal for six weeks this fall — does my role and work setup allow that, and what do I need to do?">
     <b>Remote work abroad</b>Profile → remote/security policies → next steps
   </button>
   <div class="side-h">More examples</div>
   <button class="task" data-q="Can I expense a home office chair?">Home-office chair reimbursement</button>
-  <button class="task" data-q="I'm EMP004 — am I eligible for company medical coverage?">Part-time benefits eligibility</button>
+  <button class="task" data-q="I'm Tom Novak — am I eligible for company medical coverage?">Part-time benefits eligibility</button>
   <button class="task" data-q="What are the company holidays in November 2026?">Holiday calendar</button>
   <div class="health" id="health"><span class="dot"></span>Checking system…</div>
 </aside>
@@ -129,9 +132,23 @@ fetch('/health').then(r => r.json()).then(h => {
     `<span style="color:#8087a0">model: ${h.model}</span>`;
 }).catch(() => {});
 
+// Minimal markdown: the model emits headings, bold and lists, and raw
+// asterisks look broken on screen. Escape FIRST, then re-introduce only the
+// four inline forms we allow — nothing from a tool result can inject HTML.
+function md(text) {
+  const esc = text.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  return esc
+    .replace(/^#{1,6}\s*(.+)$/gm, '<strong class="mdh">$1</strong>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^\s*[-*]\s+/gm, '• ');
+  // No \n -> <br>: .msg is already white-space: pre-wrap.
+}
+
 function add(cls, text) {
   const d = document.createElement('div');
-  d.className = 'msg ' + cls; d.textContent = text;
+  d.className = 'msg ' + cls;
+  if (cls === 'bot') d.innerHTML = md(text); else d.textContent = text;
   log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
 }
 

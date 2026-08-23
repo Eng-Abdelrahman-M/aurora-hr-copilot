@@ -20,7 +20,7 @@ FastAPI app (app/main.py)
         │  MCP protocol over stdio (discovery + tool calls)
         └─ MCP server subprocess (mcp_server/server.py) — 7 tools
              ├─ RAG index: Chroma + local ONNX MiniLM embeddings (app/rag.py)
-             │    └─ corpus/  (10 policy docs: .md, .html, .txt)
+             │    └─ corpus/  (10 policy docs: .md, .html)
              └─ mock_data/  (employees, PTO balances, benefits, tickets)
 ```
 
@@ -47,6 +47,20 @@ python -m app.rag                       # build the index + self-check (first ru
 uvicorn app.main:app --port 8100        # then open http://localhost:8100
 ```
 
+## Run with Docker
+
+```bash
+cp .env.example .env             # put your OPENAI_API_KEY in it
+docker compose up --build        # then open http://localhost:8100
+```
+
+The image bakes the Chroma index and the MiniLM embedding model at build
+time, so the container answers the first request without downloading
+anything. `.env` is in `.dockerignore` — the key is passed at run time, never
+baked into the image. Mock HR tickets the agent creates land in `mock_data/`
+on the host via a bind mount, so they survive restarts and are easy to show
+in a demo.
+
 ## Tests
 
 ```bash
@@ -56,13 +70,13 @@ pytest tests/ -v      # app boot + /health, MCP tool discovery + real stdio tool
 ## Evaluation
 
 ```bash
-python evaluation/run_eval.py                       # 26 questions -> evaluation/results.md
-RAG_K=1 python evaluation/run_eval.py --limit 15 --out results_k1.md   # retrieval ablation
+python evaluation/run_eval.py                    # 26 questions -> evaluation/results.md
+RAG_K=1 python evaluation/run_eval.py --out results_k1.md   # ablation (summary lives in results.md)
 ```
 
 Latest results: [evaluation/results.md](evaluation/results.md) — 96% workflow
-completion, 100% tool-selection accuracy, 100% groundedness, 100% action
-safety, latency p50 2.5s / p95 4.8s.
+completion, 100% tool-selection accuracy, 100% citation accuracy, 100%
+groundedness, 100% action safety, latency p50 3.5s / p95 6.1s.
 
 ## Deployment (Render)
 
@@ -71,6 +85,11 @@ safety, latency p50 2.5s / p95 4.8s.
 triggers the deploy hook **only after tests pass**. Set `OPENAI_API_KEY` in the
 Render dashboard and `RENDER_DEPLOY_HOOK` as a GitHub Actions secret.
 
+The deployed instance is gated with HTTP Basic auth (`APP_PASSWORD`) because
+it runs on a personal LLM key — see [deployed.md](deployed.md) for the
+credentials. `/health` stays public. Locally, leave `APP_PASSWORD` unset and
+there is no login at all.
+
 Free-tier note: the instance spins down after ~15 min idle; the first request
 cold-starts in ~30–60 s (the UI says so when it happens).
 
@@ -78,15 +97,30 @@ cold-starts in ~30–60 s (the UI says so when it happens).
 
 The left sidebar has one-click buttons for the two graded agentic tasks:
 
-1. **PTO request guidance** — "I'm EMP003. Can I take 3 days of PTO the week of
-   September 21? …" → `check_pto_balance` + `search_policy_documents`; the
-   agent discovers the balance is 2.5 days, finds the borrow-up-to-3-days rule
+1. **PTO request guidance** — "Hi, I'm Abdelrahman Othman. Can I take 3 days
+   off the week of September 21? …" → `check_pto_balance` +
+   `search_policy_documents`; the agent resolves the name to a record, finds
+   the balance is 2.5 days, finds the borrow-up-to-3-days rule
    [POL-PTO-001 §7], proposes it, and only files the (mock) ticket after you
    confirm.
-2. **Remote work abroad** — "I'm EMP002 and I want to work from Portugal for 6
-   weeks…" → `lookup_employee_profile` + `search_policy_documents`; the agent
-   applies the cross-border rules [POL-RW-002 §3] (People Operations + Legal,
-   3 weeks notice), not the domestic ones.
+2. **Remote work abroad** — "I want to work from Portugal for six weeks this
+   fall — does my role and work setup allow that? …" →
+   `lookup_employee_profile` + `search_policy_documents`; the agent applies
+   the cross-border rules [POL-RW-002 §3] (People Operations + Legal, 3 weeks
+   notice), not the domestic ones.
 
-A scripted **headed browser demo** that drives both tasks:
-`python scripts/demo_headed.py` (requires `playwright install chromium`).
+Every people-data tool accepts a name or an employee ID, so you never have to
+know an ID to use the app.
+
+### Scripted demo
+
+[scripts/demo.py](scripts/demo.py) drives both tasks in a visible browser so
+you can narrate over it — it types, sends, waits for each answer, and expands
+the agent-trace panel.
+
+```bash
+pip install -r requirements-dev.txt && playwright install chromium
+python scripts/demo.py                                        # local
+DEMO_URL=<deployed-url> DEMO_PASSWORD=<pw> python scripts/demo.py   # deployed
+PAUSE=0 python scripts/demo.py                                # advance on Enter
+```

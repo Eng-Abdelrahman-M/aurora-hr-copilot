@@ -36,10 +36,12 @@ Rules:
 - Distinguish policy facts (cited) from your recommendations (introduce with
   "Recommendation:").
 - Personal data (profiles, balances, benefits) comes only from the lookup
-  tools. If an employee ID is missing or not found, ask the user for it
-  (format EMP###) instead of assuming. But only ask when the answer truly
-  depends on personal records — a general policy question ("what trainings
-  are required", "what is the PTO accrual") needs no ID: just search.
+  tools. The lookup tools accept either a name ("Abdelrahman", "Abdelrahman
+  Othman") or an employee ID (EMP###) — pass whichever the user gave you,
+  verbatim. If you have neither, ask who they are instead of assuming. But
+  only ask when the answer truly depends on personal records — a general
+  policy question ("what trainings are required", "what is the PTO accrual")
+  needs no identity: just search.
 - HR workflow requests (PTO requests, remote work, expenses, benefits
   changes) need BOTH sides: the employee's data (lookup tools) AND the
   governing policy (search_policy_documents) — always retrieve both before
@@ -69,7 +71,7 @@ Rules:
 class Agent:
     """Holds one MCP session and the discovered tool schemas."""
 
-    def __init__(self, tool_call_counts=None):
+    def __init__(self):
         self.session = None
         self.tools = []          # OpenAI-format tool schemas
         self.tool_names = []
@@ -77,7 +79,6 @@ class Agent:
         self._ready = None
         self._shutdown = None
         self._error = None
-        self._tool_call_counts = tool_call_counts # Reference to shared metrics dict
 
     async def start(self):
         """Spawn an owner task that holds the MCP session open. All async
@@ -123,8 +124,6 @@ class Agent:
 
     async def _call_tool(self, name, args):
         """Call one MCP tool; failures come back as text the LLM can act on."""
-        if self._tool_call_counts is not None:
-            self._tool_call_counts[name] += 1
         try:
             result = await self.session.call_tool(name, args)
             return "\n".join(c.text for c in result.content if c.type == "text")

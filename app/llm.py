@@ -4,14 +4,18 @@
   LLM_BASE_URL  (unset = api.openai.com; works with Groq/OpenRouter/Gemini
                  OpenAI-compatible endpoints too)
   LLM_MODEL     (default gpt-4o-mini)
+
+Env is read lazily, so import order vs the .env loader never matters.
 """
 import os
 
 from openai import OpenAI
 
-MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
-
 _client = None
+
+
+def model():
+    return os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
 
 def client():
@@ -26,7 +30,7 @@ def client():
 
 def chat(messages, tools=None):
     """One chat completion. Returns the raw message object."""
-    kwargs = {"model": MODEL, "messages": messages, "temperature": 0}
+    kwargs = {"model": model(), "messages": messages, "temperature": 0}
     if tools:
         kwargs["tools"] = tools
     return client().chat.completions.create(**kwargs).choices[0].message

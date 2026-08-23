@@ -32,3 +32,18 @@ def test_app_starts_and_health(monkeypatch):
         r = client.get("/")
         assert r.status_code == 200
         assert "Aurora HR Copilot" in r.text
+
+
+def test_password_gate(monkeypatch):
+    """APP_PASSWORD set -> / and /chat need Basic auth; /health stays open."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-used")
+    monkeypatch.setenv("APP_PASSWORD", "s3cret")
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200      # public
+        assert client.get("/").status_code == 401            # gated
+        assert client.post("/chat", json={"message": "hi"}).status_code == 401
+        assert client.get("/", auth=("grader", "wrong")).status_code == 401
+        assert client.get("/", auth=("grader", "s3cret")).status_code == 200

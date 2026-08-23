@@ -29,7 +29,7 @@
   },
   {
     "employee_id": "EMP003",
-    "name": "Maya Rodriguez",
+    "name": "Abdelrahman Othman",
     "role": "Product Designer",
     "department": "Design",
     "manager_id": "EMP011",
@@ -39,7 +39,7 @@
     "employment_type": "full_time",
     "work_model": "hybrid",
     "start_date": "2025-11-10",
-    "email": "maya.rodriguez@aurora.example"
+    "email": "abdelrahman.othman@aurora.example"
   },
   {
     "employee_id": "EMP004",

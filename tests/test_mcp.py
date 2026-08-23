@@ -35,14 +35,18 @@ def test_tool_discovery():
 
 def test_tool_calls():
     async def check(session):
-        pto = await session.call_tool("check_pto_balance", {"employee_id": "EMP003"})
+        pto = await session.call_tool("check_pto_balance", {"employee": "EMP003"})
+        by_name = await session.call_tool("check_pto_balance", {"employee": "Abdelrahman"})
         rag_hits = await session.call_tool(
             "search_policy_documents", {"query": "PTO manager approval notice", "k": 3})
-        missing = await session.call_tool("check_pto_balance", {"employee_id": "EMP999"})
-        return (pto.content[0].text, rag_hits.content[0].text, missing.content[0].text)
+        missing = await session.call_tool("check_pto_balance", {"employee": "EMP999"})
+        return (pto.content[0].text, by_name.content[0].text,
+                rag_hits.content[0].text, missing.content[0].text)
 
-    pto_text, rag_text, missing_text = asyncio.run(_session_scope(check))
+    pto_text, name_text, rag_text, missing_text = asyncio.run(_session_scope(check))
     assert json.loads(pto_text)["vacation_days_available"] == 2.5
+    # a name resolves to the same record as the ID
+    assert json.loads(name_text)["employee_id"] == "EMP003"
     hits = json.loads(rag_text)
     assert any(h["doc_id"] == "POL-PTO-001" for h in hits)
-    assert "EMP999" in missing_text and "valid employee ID" in missing_text
+    assert "EMP999" in missing_text and "employee ID" in missing_text

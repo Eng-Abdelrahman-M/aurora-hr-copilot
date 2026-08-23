@@ -1,12 +1,4 @@
-"""Policy corpus ingestion + retrieval.
-
-Chunking is heading-aware: every `## section` (md), `<h2>` (html) or numbered
-ALL-CAPS heading (txt) becomes one chunk, carrying doc_id / title / section
-metadata so answers can cite their sources. Chunk ids are deterministic
-(doc_id::index), so re-ingestion is idempotent.
-
-Embeddings: Chroma's default local ONNX MiniLM model — free, no API key.
-"""
+import os
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -20,9 +12,6 @@ COLLECTION = "policies"
 
 _client = None
 _collection = None
-
-
-# ── parsing ──────────────────────────────────────────────────────────────────
 
 class _TextExtractor(HTMLParser):
     def __init__(self):
@@ -77,22 +66,6 @@ def _sections_html(text):
     return title, sections
 
 
-def _sections_txt(text):
-    lines = text.splitlines()
-    title = lines[0].strip()
-    sections, current, buf = [], "Overview", []
-    for line in lines[1:]:
-        if re.match(r"^\d+\.\s+[A-Z]", line):
-            if buf and any(s.strip() for s in buf):
-                sections.append((current, "\n".join(buf).strip()))
-            current, buf = line.strip(), []
-        else:
-            buf.append(line)
-    if buf and any(s.strip() for s in buf):
-        sections.append((current, "\n".join(buf).strip()))
-    return title, sections
-
-
 def parse_corpus():
     """Yield chunk dicts for every section of every corpus document."""
     chunks = []
@@ -102,8 +75,6 @@ def parse_corpus():
             title, sections = _sections_md(text)
         elif path.suffix == ".html":
             title, sections = _sections_html(text)
-        elif path.suffix == ".txt":
-            title, sections = _sections_txt(text)
         else:
             continue
         doc_id = _doc_meta(text, path.stem)
@@ -121,9 +92,6 @@ def parse_corpus():
                 },
             })
     return chunks
-
-
-# ── index ────────────────────────────────────────────────────────────────────
 
 def get_collection():
     global _client, _collection
@@ -156,7 +124,6 @@ def ingest(force=False):
 def search(query, k=4):
     """Top-k semantic search. Returns citation-ready hits.
     RAG_K env var overrides k (used by the evaluation ablation)."""
-    import os
     k = int(os.environ.get("RAG_K", k))
     col = get_collection()
     res = col.query(query_texts=[query], n_results=min(k, max(col.count(), 1)))
