@@ -6,3 +6,10 @@ __pycache__/
 .chroma/
 .pytest_cache/
 mock_data/tickets.json
+
+# Demo material: presenter notes and the browser driver used for the
+# recording. Useful locally, not part of the deliverable.
+scripts/
+demo-script.md
+demo_video/
+*.webm

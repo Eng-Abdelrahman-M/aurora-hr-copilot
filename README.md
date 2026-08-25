@@ -114,16 +114,3 @@ The left sidebar has one-click buttons for the two graded agentic tasks:
 
 Every people-data tool accepts a name or an employee ID, so you never have to
 know an ID to use the app.
-
-### Scripted demo
-
-[scripts/demo.py](scripts/demo.py) drives both tasks in a visible browser so
-you can narrate over it — it types, sends, waits for each answer, and expands
-the agent-trace panel.
-
-```bash
-pip install -r requirements-dev.txt && playwright install chromium
-python scripts/demo.py                                        # local
-DEMO_URL=<deployed-url> DEMO_TOKEN=<token> python scripts/demo.py   # deployed
-PAUSE=0 python scripts/demo.py                                # advance on Enter
-```
