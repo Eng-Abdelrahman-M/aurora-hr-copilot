@@ -71,12 +71,12 @@ pytest tests/ -v      # app boot + /health, MCP tool discovery + real stdio tool
 
 ```bash
 python evaluation/run_eval.py                    # 26 questions -> evaluation/results.md
-RAG_K=1 python evaluation/run_eval.py --out results_k1.md   # ablation (summary lives in results.md)
+RAG_K=1 python evaluation/run_eval.py --out results_k1.md   # ablation (summary merged into results.md)
 ```
 
-Latest results: [evaluation/results.md](evaluation/results.md) — 96% workflow
-completion, 100% tool-selection accuracy, 100% citation accuracy, 100%
-groundedness, 100% action safety, latency p50 3.5s / p95 6.1s.
+Latest results: [evaluation/results.md](evaluation/results.md) — 100% workflow
+completion, 100% tool-selection accuracy, 100% groundedness, 100% action
+safety, 88% citation accuracy, latency p50 2.3s / p95 5.0s.
 
 ## Deployment
 

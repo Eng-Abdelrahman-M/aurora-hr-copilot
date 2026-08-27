@@ -53,3 +53,62 @@ Document ID: POL-EXP-003 · Owner: Finance · Last revised: 2026-01-20
 Commuting to your assigned office, parking fines, personal entertainment,
 home internet upgrades beyond the stipend, and any expense without a receipt
 over $25.
+
+## 7. Submitting a claim
+
+Claims are submitted in the expense system within 60 days of the date the
+expense was incurred. Claims older than 60 days are paid only with Finance
+Director approval, and claims older than 120 days are not reimbursed at all.
+
+Every claim needs an itemised receipt showing the vendor, date, amount and
+what was purchased. A card statement line is not a receipt. Where a receipt
+has genuinely been lost, the employee submits a short written explanation and
+their manager approves it; this is expected to be occasional rather than
+routine.
+
+Claims are approved by the employee's manager, then checked by Finance.
+Approved claims are paid with the next payroll run, which closes on the 20th
+of each month. An employee may not approve their own claim, nor a claim from
+someone who approves theirs.
+
+## 8. Currency, taxes and personal cards
+
+Expenses incurred in a currency other than the employee's payroll currency are
+converted at the rate on the transaction date, taken automatically from the
+card provider or, for personal cards, from the published rate that day.
+Aurora Dynamics does not reimburse foreign exchange fees charged by a personal
+bank; employees travelling frequently should request a company card.
+
+Where local tax rules make a reimbursement taxable to the employee, Aurora
+Dynamics grosses up the payment so the employee is not left out of pocket.
+This applies most often to home-office equipment in some jurisdictions.
+
+Personal and business spending must not be mixed on a single claim. Where a
+receipt covers both — a dinner that includes a personal guest, for example —
+the employee claims only the business portion and notes the split.
+
+## 9. Meals and entertainment
+
+Meals are reimbursable when travelling on company business, when working more
+than three hours beyond normal hours at the company's request, or when hosting
+a customer or candidate. Day-to-day meals at or near the employee's usual place
+of work are not reimbursable.
+
+Per-meal guidance is USD 25 for breakfast, USD 30 for lunch and USD 60 for
+dinner, inclusive of tax and tip. These are guidelines rather than
+entitlements: claim what was actually spent. Amounts materially above the
+guidance need a note explaining why.
+
+Alcohol is reimbursable only as part of a customer or candidate meal, and only
+in moderation. Team social events are funded from the team's budget by prior
+arrangement rather than through individual expense claims.
+
+## 10. Disputed and rejected claims
+
+A claim rejected by Finance is returned with a reason and may be resubmitted
+once with the missing information. An employee who disagrees with a rejection
+may ask People Operations to review it; the review decision is final.
+
+Deliberate submission of a false claim is a disciplinary matter under the Code
+of Conduct [POL-COC-004 section 1] and may result in dismissal. Honest errors
+corrected promptly are not treated as misconduct.

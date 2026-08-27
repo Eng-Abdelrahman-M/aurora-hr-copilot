@@ -18,7 +18,7 @@
 │   · lookup_employee_profile / check_pto_balance / lookup_benefits_status → mock    │
 │   · create_mock_hr_ticket / draft_hr_email        →  mock actions                  │
 │  RAG index: Chroma (persistent, .chroma/) + local ONNX MiniLM embeddings           │
-│  corpus/ 10 policy docs (md, html) · mock_data/ JSON                               │
+│  corpus/ 10 policy docs, ~8.8k words (md, html) · mock_data/ JSON               │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,13 +38,14 @@
 - **Chunking: heading-aware.** Every `##` (md) / `<h2>` (html) becomes one
   chunk carrying `doc_id`, `title`, `section`
   metadata. Policy documents are naturally section-structured; sections are
-  the correct citation unit (`[POL-PTO-001 § 3. Requesting PTO]`). 60 chunks
+  the correct citation unit (`[POL-PTO-001 § 3. Requesting PTO]`). 111 chunks
   from 10 documents — no overlap needed at this granularity, and chunk ids
   are deterministic (`doc_id::index`), so re-ingestion is idempotent.
 - **Embeddings: Chroma default (all-MiniLM-L6-v2, ONNX, local).** Free, no
   API key, no rate limits, deterministic; ~80MB downloaded once and cached.
-- **Retrieval k = 5** (tool default; the LLM may override per call, and the
-  evaluation can force it via `RAG_K`). The ablation below shows why not 1.
+- **Retrieval k = 8** (tool default; the LLM may override per call, and the
+  evaluation can force it via `RAG_K`). Raised from 5 when the corpus grew to
+  111 chunks; the ablation below reports the measured difference honestly.
 - **LLM: gpt-4o-mini** via the OpenAI API — cheap, reliable tool-calling.
   Provider is swappable by env var (`LLM_BASE_URL`) to Groq/OpenRouter/etc.
 - **Safety guardrails.**
@@ -73,7 +74,7 @@ discovered by the client at startup (`/health` lists them live). Summary:
 
 | Tool | Arguments | Backing |
 |---|---|---|
-| search_policy_documents | query: str, k: int = 5 | RAG index |
+| search_policy_documents | query: str, k: int = 8 | RAG index |
 | get_policy_section | doc_id: str, section_query: str = "" | RAG index |
 | lookup_employee_profile | employee: str (name or ID) | mock_data/employees.json |
 | check_pto_balance | employee: str (name or ID) | mock_data/pto_balances.json |
@@ -127,44 +128,46 @@ tools, expected cited documents, and gold keywords:
 programmatic (no judge model): see metric definitions in
 [evaluation/run_eval.py](evaluation/run_eval.py).
 
-Results (live run, gpt-4o-mini, 2026-08-18 —
+Results (live run, gpt-4o-mini, 2026-08-24 —
 [full table](evaluation/results.md)):
 
 | Metric | Score |
 |---|---|
-| Workflow completion | 96% (25/26) |
+| Workflow completion | 100% (26/26) |
 | Tool selection accuracy | 100% |
-| Citation accuracy (policy questions) | 100% |
+| Citation accuracy (policy questions) | 88% |
 | Groundedness (no uncited doc references) | 100% |
-| Gold-keyword answer match | 96% |
+| Gold-keyword answer match | 100% |
 | Action safety (no unconfirmed writes) | 100% |
-| Latency p50 / p95 (warm) | 3.5 s / 6.1 s |
+| Latency p50 / p95 (warm) | 2.3 s / 5.0 s |
 
-The single miss is Q14, a multi-document question whose gold keyword the
-answer paraphrases rather than states; tools, citations and groundedness are
-all correct on it.
+Citation accuracy is the one metric below 100%: two policy questions cite a
+different but still correct section instead of the one named as gold. Both
+answers are grounded — every document id in the answer was returned by a tool
+— so this is a strictness artefact of the gold labels rather than a
+hallucination. It moves by one or two questions between runs (88–94%); see
+the ablation.
 
 Cold start on the free tier adds ~30–60 s to the *first* request only
 (service spin-up); warm latency is as above.
 
 ### Ablation — retrieval k
 
-All 26 questions, same order, temperature 0; only `RAG_K` changes
-(see [results.md](evaluation/results.md)):
+All 26 questions, temperature 0, `RAG_K` forcing the value the retrieval tool
+returns (full table in [results.md](evaluation/results.md)):
 
-| Metric | k = 5 | k = 1 |
-|---|---|---|
-| Workflow completion | 96% | 92% |
-| Tool selection accuracy | 100% | 96% |
-| Citation accuracy | 100% | 100% |
-| Gold-keyword match | 96% | 92% |
-| Latency p50 / p95 | 3.5s / 6.1s | 2.6s / 4.4s |
+| Metric | k = 1 | k = 5 | k = 8 (default) |
+|---|---|---|---|
+| Workflow completion | 100% | 100% | 100% |
+| Citation accuracy | 94% | 88% | 94% |
+| Latency p50 | 2.7s | 3.0s | 2.8s |
 
-With k=1 the agent sees one section per search. What it cites stays accurate,
-but a single section often does not carry the whole answer: it drops a
-question on completion and one on tool selection. The saving is ~0.9 s at
-p50; k=5 costs ~1k extra prompt tokens and removes that failure class, which
-is why k=5 is the default.
+On 26 questions one item is worth ~6 points, so this spread is one or two
+questions rather than a clean trend. The agent can issue several searches per
+turn, which blunts the effect of a small k compared with a single-shot RAG
+pipeline. k=8 is shipped because it ties for best citation accuracy at no
+latency cost, and because a k of 5 returns a thin slice of a corpus that now
+holds 111 sections.
 
 ### What the evaluation caught during development (kept honest)
 

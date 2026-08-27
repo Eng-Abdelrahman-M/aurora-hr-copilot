@@ -56,3 +56,72 @@ Aurora Dynamics operates a **hybrid-by-default** model:
 
 Remote status may be revoked with 30 days' notice for documented performance
 or business reasons.
+
+## 7. Applying to change work model
+
+An employee may request a permanent change of work model — office, hybrid or
+fully remote — at any time after completing probation. The request goes to the
+line manager, who consults People Operations before deciding, and a decision
+is given within fifteen business days. Approval depends on whether the role
+can be performed effectively without regular in-person presence, on team
+coverage, and on whether the employee's location is one where Aurora Dynamics
+is registered as an employer.
+
+Roles that require physical presence — hardware bring-up, on-site customer
+work, and reception or facilities duties — are not eligible for a fully remote
+model. Where a request is declined, the manager records the reason in writing
+and the employee may ask People Operations to review the decision once.
+
+A change of work model does not change salary. Aurora Dynamics does not
+operate location-based pay adjustments within a country. A permanent move to a
+different country is a different matter and is treated as a new employment
+arrangement; see section 3 and the Data Security Policy [POL-SEC-005 section
+4].
+
+## 8. Time zones and core hours
+
+Remote and hybrid employees are expected to be reachable during their team's
+core hours, which are the four hours that overlap most working days across the
+team's locations. Core hours are agreed within each team and recorded in the
+team handbook; they are not set centrally.
+
+An employee whose personal time zone drifts more than three hours from their
+team's core hours — whether through a permanent move or a temporary stay —
+must agree a working pattern with their manager before the change takes
+effect. Teams are expected to record decisions in writing rather than relying
+on synchronous meetings, so that colleagues in other time zones are not
+excluded.
+
+Meetings scheduled outside an individual's agreed working hours are optional
+for that individual, and notes must be circulated afterwards.
+
+## 9. Office attendance for hybrid employees
+
+Hybrid employees attend an Aurora Dynamics office at least eight days per
+calendar month, with at least one of those days overlapping their immediate
+team. Attendance is recorded by badge and reviewed quarterly rather than
+weekly, so an employee who travels heavily in one month can compensate in the
+next within the same quarter.
+
+Employees whose home is more than 80 kilometres from their assigned office
+attend four days per month instead of eight. Employees on medical or caring
+arrangements agreed with People Operations may have the requirement reduced or
+suspended; such arrangements are reviewed every six months.
+
+Failure to meet the attendance expectation is a conversation between the
+employee and their manager in the first instance, not a disciplinary matter.
+Persistent non-attendance without an agreed exception may lead to the hybrid
+arrangement being revoked under section 6.
+
+## 10. Co-working spaces
+
+Employees without a nearby Aurora Dynamics office may claim up to USD 200 per
+month towards a co-working membership, with prior manager approval. The claim
+is made under the Expense Policy [POL-EXP-003 section 3]. Aurora Dynamics does
+not sign long-term leases on behalf of individuals, and memberships must be
+cancellable monthly.
+
+Company data may be accessed from a co-working space only under the same
+conditions that apply to any public network — VPN on, screen privacy
+maintained, no unattended devices. See the Data Security Policy [POL-SEC-005
+section 3].

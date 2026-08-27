@@ -54,3 +54,67 @@ in advance.
 
 Employees may borrow up to **3 days** against future accrual with manager
 approval. Larger advances require People Operations approval.
+
+## 8. Part-time and contractor entitlement
+
+Part-time employees accrue vacation pro rata based on contracted hours. An
+employee contracted for 20 hours per week accrues at half the full-time rate
+(0.833 days per month rather than 1.667). Sick days and floating holidays are
+likewise pro-rated and rounded up to the nearest half day at the end of each
+quarter. Employees who change between part-time and full-time mid-year have
+their accrual rate adjusted from the first day of the following month; the
+balance already earned is never reduced by such a change.
+
+Contractors engaged through an agency or on a statement of work do not accrue
+PTO under this policy. Their time off is governed by their contract and by the
+law of the country in which they are engaged. Contractors should notify their
+Aurora Dynamics point of contact at least five business days before planned
+absences so that delivery schedules can be adjusted, but they do not submit
+PTO requests in the HR system and no approval is recorded there.
+
+Interns on fixed-term placements of three months or longer accrue sick days
+from their start date but do not accrue vacation; they are instead granted
+five paid days of leave for the placement, which do not carry over and are not
+paid out.
+
+## 9. Sick leave
+
+Sick days are separate from vacation and are granted, not accrued: full-time
+employees receive twelve sick days on 1 January each year, pro-rated in the
+first year of employment from the start date. Sick days do not carry over and
+are never paid out on termination.
+
+No medical certificate is required for absences of three consecutive working
+days or fewer. From the fourth consecutive day, People Operations will request
+a fitness-to-work note; absences beyond ten consecutive working days are
+handled under the Leave of Absence Policy [POL-LOA-006 section 2] rather than
+as sick days.
+
+Sick days may be used for the employee's own illness, for a medical or dental
+appointment that cannot be scheduled outside working hours, or to care for a
+dependent child or adult who is unwell. Employees should notify their manager
+as early as practical on the first day of absence, by whatever channel the
+team normally uses; a formal request in the HR system is entered afterwards
+rather than in advance.
+
+An employee who falls ill while on approved vacation may convert the affected
+days from vacation to sick leave, provided they notify their manager during
+the absence and supply a medical note covering the days in question.
+
+## 10. Public holidays falling within PTO
+
+Company holidays that fall inside an approved PTO period are not deducted from
+the vacation balance — see the Holiday Calendar [POL-HOL-010 section 5] for
+the full rule and the treatment of regional holidays.
+
+## 11. Unused balance on leaving the company
+
+Employees leaving Aurora Dynamics are paid out for accrued but unused vacation
+days at their final base rate, capped at ten days. Floating holidays and sick
+days are not paid out. Where an employee has a negative vacation balance at
+their leaving date, the corresponding amount is deducted from the final salary
+payment, subject to local law; deductions are never applied where prohibited.
+
+Notice periods may not be served entirely as PTO. At least half of any notice
+period must be worked unless the manager and People Operations both agree
+otherwise in writing.

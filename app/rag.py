@@ -121,7 +121,7 @@ def ingest(force=False):
     return col.count()
 
 
-def search(query, k=4):
+def search(query, k=8):
     """Top-k semantic search. Returns citation-ready hits.
     RAG_K env var overrides k (used by the evaluation ablation)."""
     k = int(os.environ.get("RAG_K", k))

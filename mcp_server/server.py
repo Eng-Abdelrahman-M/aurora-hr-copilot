@@ -44,7 +44,7 @@ def _not_found(who, kind):
 
 
 @mcp.tool()
-def search_policy_documents(query: str, k: int = 5) -> str:
+def search_policy_documents(query: str, k: int = 8) -> str:
     """Semantic search over Aurora Dynamics policy documents. Returns the top-k
     most relevant policy sections with doc_id, title, section and snippet —
     use these fields to cite sources in your answer."""
