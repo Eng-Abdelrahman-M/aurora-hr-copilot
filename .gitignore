@@ -13,3 +13,6 @@ scripts/
 demo-script.md
 demo_video/
 *.webm
+
+# Generated submission report (built from the markdown docs)
+*.docx
