@@ -176,7 +176,11 @@ async def chat(req: ChatRequest, request: Request):
     # against the limit below, so only someone who already has the token
     # benefits.
     token = access_token()
-    unlocking = bool(token) and secrets.compare_digest(req.message.strip(), token)
+    # compare_digest rejects non-ASCII str, so compare the UTF-8 bytes: any
+    # accented or non-Latin message would otherwise raise TypeError here.
+    unlocking = bool(token) and secrets.compare_digest(
+        req.message.strip().encode(), token.encode()
+    )
 
     # Rate limit otherwise applies to locked sessions too, so the gate cannot
     # be used as a free guessing oracle.
